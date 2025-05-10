@@ -1,10 +1,11 @@
-from hapimeta import logger, get, read, write, utc_now
+import utilrsw
+from hapimeta import get, logger_kwargs
 
 debug        = False
 data_dir     = 'data'
-servers_only = None # None to get all servers.
+servers_only = None # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
-timeout      = 20   # Set to small value to force failures.
+timeout      = 40   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
@@ -17,7 +18,7 @@ files = {
   'catalogs_all': 'servers/data/catalogs-all.json',
 }
 
-log = logger()
+log = utilrsw.logger(**logger_kwargs)
 
 def get_catalogs(servers, servers_only=None):
   catalogs = {}
@@ -29,17 +30,17 @@ def get_catalogs(servers, servers_only=None):
       continue
     log.info(server_id)
     try:
-      catalog = get_json(f"{obj['url']}/catalog", timeout=timeout)
+      catalog = get(f"{obj['url']}/catalog", log=log, indent="  ", timeout=timeout)
     except Exception as e:
-      log.error(f"  Error: {e}")
+      log.error(f"  {e}")
       catalog = {
-        'x_LastUpdateAttempt': utc_now(),
+        'x_LastUpdateAttempt': utilrsw.utc_now(),
         'x_LastUpdateError': str(e)
       }
 
     if 'catalog' not in catalog:
       catalog = {
-        'x_LastUpdateAttempt': utc_now(),
+        'x_LastUpdateAttempt': utilrsw.utc_now(),
         'x_LastUpdateError': "No catalog node in JSON response."
       }
 
@@ -47,7 +48,7 @@ def get_catalogs(servers, servers_only=None):
     if 'x_LastUpdateError' in catalog:
       log.info("  Attempting to read last successful /catalog response.")
       try:
-        catalog_last = read(fname)
+        catalog_last = utilrsw.read(fname)
         log.info("  Read last successful /catalog response.")
         # Overwrites x_LastUpdate{Attempt,Error}
         catalog = {**catalog_last, **catalog}
@@ -55,14 +56,14 @@ def get_catalogs(servers, servers_only=None):
         log.info("  No last successful /catalog response found.")
         continue
     else:
-      catalog['x_LastUpdate'] = utc_now()
+      catalog['x_LastUpdate'] = utilrsw.utc_now()
 
     catalog['x_URL'] = obj['url']
 
     catalogs[server_id] = catalog
 
     try:
-      write(fname, catalog)
+      utilrsw.write(fname, catalog)
     except:
       log.error(f"Error writing {fname}. Exiting with code 1.")
       exit(1)
@@ -82,16 +83,16 @@ def get_infos(cid, catalog, max_infos=None):
     log.info(id)
     try:
       info = get(f"{catalog['x_URL']}/info?id={id}", timeout=timeout, log=log, indent="  ")
-      info['x_LastUpdate'] = utc_now()
+      info['x_LastUpdate'] = utilrsw.utc_now()
     except Exception as e:
       info = {
         'x_LastUpdateError': str(e),
-        'x_LastUpdateAttempt': utc_now()
+        'x_LastUpdateAttempt': utilrsw.utc_now()
       }
 
     if 'parameters' not in info:
       info = {
-        'x_LastUpdateAttempt': utc_now(),
+        'x_LastUpdateAttempt': utilrsw.utc_now(),
         'x_LastUpdateError': "No parameters node in JSON response."
       }
 
@@ -99,7 +100,7 @@ def get_infos(cid, catalog, max_infos=None):
     if 'x_LastUpdateError' in info:
       log.info("  Attempting to read last successful /info response.")
       try:
-        info_last = read(fname)
+        info_last = utilrsw.read(fname)
         log.info("  Read last successful /info response.")
         # Overwrites x_LastUpdate{Attempt,Error}
         info = {**info_last, **info}
@@ -107,10 +108,10 @@ def get_infos(cid, catalog, max_infos=None):
         log.info("  No last successful /info response found.")
         continue
     else:
-      info['x_LastUpdate'] = utc_now()
+      info['x_LastUpdate'] = utilrsw.utc_now()
 
     try:
-      write(fname, info)
+      utilrsw.write(fname, info)
     except:
       log.error(f"  Error writing {fname}")
 
@@ -128,7 +129,7 @@ def get_infos(cid, catalog, max_infos=None):
     n = n + 1
 
 try:
-  servers = read(files['servers'])
+  servers = utilrsw.read(files['servers'])
 except Exception as e:
   log.error(f"Error reading {files['servers']}: {e}")
   exit(1)
@@ -144,7 +145,7 @@ log.info("Finished /catalog requests.")
 log.info(40*"-")
 
 try:
-  write(files['catalogs'], catalogs)
+  utilrsw.write(files['catalogs'], catalogs)
 except:
   log.error(f"Error writing {files['catalogs']}. Exiting with code 1.")
   exit(1)
@@ -171,14 +172,17 @@ log.info("Finished /info requests.")
 log.info(40*"-")
 
 try:
-  write(files['catalogs_all'], catalogs, logger=log)
+  utilrsw.write(files['catalogs_all'], catalogs, logger=log)
 except:
   log.error(f"Error writing {files['catalogs_all']}. Exiting with code 1.")
   exit(1)
 
 file_pkl = files['catalogs_all'].replace('.json', '.pkl')
 try:
-  write(file_pkl, catalogs, logger=log)
+  utilrsw.write(file_pkl, catalogs, logger=log)
 except:
   log.error(f"Error writing {file_pkl}. Exiting with code 1.")
   exit(1)
+
+# Remove error log file if empty.
+utilrsw.rm_if_empty("catalogs.errors.log")

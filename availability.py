@@ -5,15 +5,16 @@ import os
 import sys
 import pickle
 
+import utilrsw
+
 from datetime import datetime, timedelta, timezone
-
-from hapimeta import logger, svglinks, write
 from hapiclient import hapitime2datetime
+from hapimeta import logger_kwargs
 
-log = logger()
+log = utilrsw.logger(**logger_kwargs)
 
 max_workers    = 1      # Number of servers to process in parallel
-lines_per_plot = 50     # Number of time range plots per page
+lines_per_plot = 50     # Number of time range bars per plot
 # File formats to save. 'png' and 'svg' are supported.
 savefig_fmts = ['svg', 'png']
 
@@ -41,7 +42,7 @@ with open(catalogs_all, 'rb') as f:
 def _write(fname, data, logger=None):
   try:
     log.info(f"Writing {fname}")
-    write(fname, data, logger=logger)
+    utilrsw.write(fname, data, logger=logger)
   except Exception as e:
     log.error(f"Error writing {fname}: {e}")
     raise e
@@ -78,7 +79,7 @@ def plot(server, server_url, title, datasets, starts, stops,
   def config(ax, starts_min, stops_max, title, n_plots, fn_padded=None, left_margin=None, right_margin=None):
 
     if fn_padded is not None:
-      title = f'{title}    page {fn_padded}/{n_plots}'
+      title = f'{title}    plot {fn_padded}/{n_plots}'
     ax.set_title(title)
     ax.set_xlim([starts_min, stops_max])
     ax.spines['top'].set_visible(False)
@@ -106,7 +107,7 @@ def plot(server, server_url, title, datasets, starts, stops,
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
       plt.savefig(f"{_fname}")
-      svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug)
+      utilrsw.svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug)
 
     if 'png' in savefig_fmts:
       _fname = os.path.join(base_dir, "png", f"{server}.{fn}.png")
@@ -300,7 +301,7 @@ def process_server(server, catalogs_all):
 
   def extract_time(info, key):
     if key not in info:
-      log.error(f"{server}/{dataset['id']}: key '{key}' not in info")
+      log.error(f"{server}/{dataset['id']}: key '{key}' is not in info")
       return None, None
 
     if info[key].strip() == "":
@@ -310,7 +311,7 @@ def process_server(server, catalogs_all):
     hapitime = info[key]
     try:
       dt = hapitime2datetime(hapitime, allow_missing_Z=True)
-    except e:
+    except Exception as e:
       import traceback
       trace = traceback.format_exc()
       log.error(f"{server}/{dataset['id']}: hapitime2datetime({hapitime}) returned:\n{trace}")
@@ -328,7 +329,7 @@ def process_server(server, catalogs_all):
   log.info(f"{len(catalogs_all['catalog'])} datasets")
   for dataset in catalogs_all['catalog']:
     if 'info' not in dataset:
-      log.error(f'No info node for {server}/{dataset["id"]}')
+      log.error(f"No 'info' key in {server}/{dataset['id']}")
       print(server, dataset['id'], None, None)
       continue
 
@@ -377,3 +378,6 @@ else:
     process_server(server, catalogs_all[server])
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
     pool.map(call, catalogs_all.keys())
+
+# Remove error log file if empty.
+utilrsw.rm_if_empty("availability.errors.log")

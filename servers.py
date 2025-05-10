@@ -1,7 +1,9 @@
 import json
 
-from hapimeta import logger, get, read, write, utc_now
-log = logger()
+import utilrsw
+from hapimeta import get, logger_kwargs
+
+log = utilrsw.logger(**logger_kwargs)
 
 fname_in   = 'servers/servers.json'
 fname_out  = 'servers/servers.updated.json'
@@ -27,7 +29,7 @@ def equivalent_dicts(servers, about):
       diff = True
   return diff
 
-servers = read(fname_in)
+servers = utilrsw.read(fname_in)
 
 changed = False
 all_file_str1 = ""
@@ -37,11 +39,11 @@ for idx in range(len(servers['servers'])):
   try:
     about = get(server['url'] + '/about', log=log)
   except Exception as e:
-    server['x_LastUpdateAttempt'] = utc_now()
+    server['x_LastUpdateAttempt'] = utilrsw.utc_now()
     server['x_LastUpdateError'] = str(type(e)) + " " + str(e)
     continue
 
-  server['x_LastUpdate'] = utc_now()
+  server['x_LastUpdate'] = utilrsw.utc_now()
   del about["HAPI"]
   del about["status"]
   if not equivalent_dicts(server, about):
@@ -49,7 +51,7 @@ for idx in range(len(servers['servers'])):
   else:
     changed = True
     log.info(f"  Difference between servers.json[{server['id']}] and {server['url']}/about")
-    server["x_LastUpdateChange"] = utc_now()
+    server["x_LastUpdateChange"] = utilrsw.utc_now()
     log.info(f"servers.json[{server['id']}]")
     log.info(json.dumps(server, indent=2, ensure_ascii=False))
     log.info(f"{server['url']}/about")
@@ -62,11 +64,14 @@ for idx in range(len(servers['servers'])):
 if not changed:
   log.info("No changes to servers.json. Updating only x_ fields.")
 
-write(fname_out, servers)
+utilrsw.write(fname_out, servers)
 
 if changed:
-  write(fname_all1, all_file_str1)
-  write(fname_all2, all_file_str2)
+  utilrsw.write(fname_all1, all_file_str1)
+  utilrsw.write(fname_all2, all_file_str2)
 else:
   msg = f"No changes to servers.json. Not writing {fname_all1} or {fname_all2}."
   log.info(msg)
+
+# Remove error log file if empty.
+utilrsw.rm_if_empty("servers.errors.log")

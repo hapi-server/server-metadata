@@ -1,13 +1,4 @@
-__all__ = ['version',
-           'mkdir',
-           'write',
-           'read',
-           'utc_now',
-           'logger',
-           'get',
-           'svglinks',
-           'version'
-        ]
+__all__ = ['version', 'get', 'logger_kwargs']
 
 def version():
   import os
@@ -17,43 +8,12 @@ def version():
 
 __version__ = version()
 
-from utilrsw import mkdir
-from utilrsw import write
-from utilrsw import read
-from utilrsw import utc_now
-from utilrsw import svglinks
-
-def logger(file_name=None):
-  import os
-  import time
-  import inspect
-  import logging
-
-  # Print to stdout and file_name
-
-  if file_name is None:
-    frame = inspect.stack()[1]
-    module = inspect.getmodule(frame[0])
-    file_name = os.path.splitext(module.__file__)[0] + ".log"
-
-  mkdir(os.path.dirname(file_name))
-
-  if os.path.exists(file_name):
-    os.remove(file_name)
-
-  conf = {
-    'handlers': [logging.FileHandler(file_name, 'w', 'utf-8'),
-                 logging.StreamHandler()
-              ],
-    'level': logging.INFO,
-    'format': u'%(asctime)s.%(msecs)03dZ %(message)s',
-    'datefmt': '%H:%M:%S',
-  }
-  logging.basicConfig(**conf)
-
-  logging.Formatter.converter = time.gmtime
-
-  return logging.getLogger(__name__)
+logger_kwargs = {
+  "console_format": u"%(asctime)s.%(msecs)03dZ %(levelname)s %(message)s",
+  "file_format": u"%(levelname)s %(message)s",
+  "datefmt": "%H:%M:%S",
+  "color": True
+}
 
 def get(url, log=None, timeout=20, indent=""):
 
@@ -62,11 +22,19 @@ def get(url, log=None, timeout=20, indent=""):
 
   import json
   import requests
+  from requests.adapters import HTTPAdapter
+  from requests.packages.urllib3.util.retry import Retry
+
+  retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
 
   log.info(f"{indent}Getting {url}")
   headers = {'User-Agent': f'hapibot-mirror/{version()}; https://github.com/hapi-server/data-specification/wiki/hapi-bots.md#hapibot-mirror'}
+  session = requests.Session()
+  session.mount('http://', HTTPAdapter(max_retries=retries))
+  session.mount('https://', HTTPAdapter(max_retries=retries))
+
   try:
-    response = requests.get(url, headers=headers, timeout=timeout)
+    response = session.get(url, headers=headers, timeout=timeout)
     response.raise_for_status() # Raise an error if response code is not 2xx
   except Exception as e:
     log.error(f"{indent}Error: {e}")
@@ -79,4 +47,3 @@ def get(url, log=None, timeout=20, indent=""):
     log.error(f"{indent}Error parsing JSON from {url}:\n  {e}")
     raise e
   return data
-
