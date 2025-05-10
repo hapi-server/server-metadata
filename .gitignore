@@ -1,0 +1,7 @@
+hapimeta.egg-info/
+.DS_Store
+hapimeta/__pycache__/
+data/
+servers/
+*.log
+*~
