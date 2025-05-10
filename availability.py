@@ -1,25 +1,21 @@
 # Usage:
 #   python availability.py [server_id1,server_id2,...]
 
-# TODO: Create service
-#  meta/catalog?include=all
-#  meta/availability?start=START&stop=stop
-#  meta/availability?start=START&stop=stop
-#  server, dataset, start, stop, cadence, x_lat, x_long, regions
-
 import os
 import sys
-import json
 import pickle
 
 from datetime import datetime, timedelta, timezone
 
-from hapimeta import logger, svglinks
+from hapimeta import logger, svglinks, write
 from hapiclient import hapitime2datetime
+
+log = logger()
 
 max_workers    = 1      # Number of servers to process in parallel
 lines_per_plot = 50     # Number of time range plots per page
-savefig_fmts = ['svg']  # File formats to save. 'png' and 'svg' are supported.
+# File formats to save. 'png' and 'svg' are supported.
+savefig_fmts = ['svg', 'png']
 
 dpi        = 300
 fig_width  = 3840           # pixels
@@ -34,14 +30,21 @@ all = True
 if len(sys.argv) > 1:
   all = False
   servers_only = sys.argv[1].split(',')
-  print(f"Generating availability for '{servers_only}'")
+  log.info(f"Generating availability for '{servers_only}'")
 else:
-  print(f"Generating availability for all servers in {catalogs_all}")
+  log.info(f"Generating availability for all servers in {catalogs_all}")
 
-log = logger()
 
 with open(catalogs_all, 'rb') as f:
   catalogs_all = pickle.load(f)
+
+def _write(fname, data, logger=None):
+  try:
+    log.info(f"Writing {fname}")
+    write(fname, data, logger=logger)
+  except Exception as e:
+    log.error(f"Error writing {fname}: {e}")
+    raise e
 
 def plot(server, server_url, title, datasets, starts, stops,
          lines_per_plot=lines_per_plot,
@@ -64,6 +67,7 @@ def plot(server, server_url, title, datasets, starts, stops,
     'rarrow': '→ ',  # Unicode right arrow
     'larrow': '←'    # Unicode left arrow
   }
+
   def newfig():
     plt.close('all')
     fig, ax = plt.subplots()
@@ -88,32 +92,30 @@ def plot(server, server_url, title, datasets, starts, stops,
       plt.subplots_adjust(left=left_margin, right=right_margin)
     plt.subplots_adjust(top=0.93, bottom=0.05)
 
-
   def id_strip(id):
     for key, value in special_chars.items():
       id = id.replace(value, '')
     return id
 
-  def write(fn):
-    fname = f"{out_dir}/{server}/{server}.{fn}"
-
-    if not os.path.exists(os.path.dirname(fname)):
-      os.makedirs(os.path.dirname(fname))
+  def savefig(fn):
+    base_dir = os.path.join(out_dir, server)
 
     if 'svg' in savefig_fmts:
-      _fname = f"{fname}.svg"
+      _fname = os.path.join(base_dir, "svg", f"{server}.{fn}.svg")
+      if not os.path.exists(os.path.dirname(_fname)):
+        os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
       plt.savefig(f"{_fname}")
-      log.info(f'Wrote   {_fname}')
       svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug)
 
     if 'png' in savefig_fmts:
-      _fname = f"{fname}.png"
+      _fname = os.path.join(base_dir, "png", f"{server}.{fn}.png")
+      if not os.path.exists(os.path.dirname(_fname)):
+        os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
       plt.savefig(f"{_fname}", dpi=dpi)
-      log.info(f'Wrote   {_fname}')
 
-    return _fname
+    return f"{server}.{fn}"
 
   def draw(ax, n, starts, stops, datasets, start_text, max_len):
     gid_bar = f"https://hapi-server.org/servers/#server={server}&dataset={id_strip(datasets[n])}"
@@ -164,7 +166,7 @@ def plot(server, server_url, title, datasets, starts, stops,
   config(ax, starts_min, stops_max, title, n_plots)
   l, b, w, h = ax.get_position().bounds
   if debug:
-    file = write('all-before-tight-layout')
+    file = savefig('all-before-tight-layout')
     print(f"Left margin: {l}")
     print(f"Bottom margin: {b}")
     print(f"Width: {w}")
@@ -172,7 +174,7 @@ def plot(server, server_url, title, datasets, starts, stops,
   fig.tight_layout()
   l, b, w, h = ax.get_position().bounds
   if debug:
-    file = write('all-after-tight-layout')
+    file = savefig('all-after-tight-layout')
     print(f"Left margin: {l}")
     print(f"Bottom margin: {b}")
     print(f"Width: {w}")
@@ -191,7 +193,7 @@ def plot(server, server_url, title, datasets, starts, stops,
       fn = fn + 1
       fn_padded = f"{fn:0{pad}d}"
       config(ax, starts_min, stops_max, title, n_plots, fn_padded, left_margin, right_margin)
-      file = write(fn_padded)
+      file = savefig(fn_padded)
       files.append(file)
 
       fig, ax = newfig()
@@ -201,7 +203,7 @@ def plot(server, server_url, title, datasets, starts, stops,
     fn = fn + 1
     fn_padded = f"{fn:0{pad}d}"
     config(ax, starts_min, stops_max, title, n_plots, fn_padded, left_margin, right_margin)
-    file = write(fn)
+    file = savefig(fn)
     files.append(file)
 
   return files
@@ -215,7 +217,7 @@ def html(files):
   <html lang="en">
   <script>
   function searchKey() {
-    if (navigator.platform.toUpperCase().indexOf('MAC')) {
+    if (navigator.platform.toUpperCase().startsWith("MAC")) {
       return "⌘+F";
     }
     return "Ctrl+F";
@@ -239,40 +241,60 @@ def html(files):
       Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=TITLE" target="_blank">TITLE</a> HAPI server.
     </p>
     <ul>
-      <li>Use <script>document.write(searchKey());</script> to search for a dataset.</li>
-      <li>Click a dataset view information about dataset.</li>
-      <li>Click a bar view plots of parameters in dataset.</li>
+      <li>Data for plots: <a href="../TITLE.csv" target="_blank">TITLE.csv</a></li>
+      <li><a href="../" target="_blank">Plot files</a></li>
+      <li><a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a></li>
     </ul>
+    SEARCH
     DIVS
   </body>
   </html>
   """
 
+  search = """
+    <h2>Search</h2>
+    <ul>
+      <li>Use <script>document.write(searchKey());</script> to search for a dataset.</li>
+      <li>Click a dataset name to view information about dataset.</li>
+      <li>Click a bar to view plots of parameters in dataset.</li>
+    </ul>
+  """
+
   # Remove leading and trailing whitespace from each line
   html_content = "\n".join([line.strip() for line in html_content.split("\n")])
 
-  divs = ""
+  divs_svg = ""
+  divs_png = ""
   for file in files:
-    with open(file, "rb") as svg_file:
-      svg_data = svg_file.read()
-      divs += svg_data.decode('utf-8')
-    continue
-    file = os.path.basename(file)
-    #divs += f'<img width="100%" src="{file}" alt="{file}">\n'
-    with open(file, "rb") as png_file:
-      png_data = png_file.read()
-      png_base64 = base64.b64encode(png_data).decode('utf-8')
-      divs += f'<img width="100%" src="data:image/png;base64,{png_base64}" alt="{file}">\n'
+    if 'svg' in savefig_fmts:
+      file_svg = os.path.join(out_dir, server, "svg", f"{file}.svg")
+      with open(file_svg, "rb") as f:
+        svg_data = f.read()
+        divs_svg += svg_data.decode('utf-8')
+      file = os.path.basename(file)
+      divs_svg += f'<img width="100%" src="{file}" alt="{file}">\n'
+    if 'png' in savefig_fmts:
+      file_png = os.path.join(out_dir, server, "png", f"{file}.png")
+      with open(file_png, "rb") as f:
+        png_data = f.read()
+        png_base64 = base64.b64encode(png_data).decode('utf-8')
+        divs_png += f'<img width="100%" src="data:image/png;base64,{png_base64}" alt="{file}">\n'
 
-  html_content = html_content.replace("DIVS", divs)
   html_content = html_content.replace("TITLE", server)
 
-  # Write the HTML content to the output file
-  fname = f"{out_dir}/{server}/{server}.html"
-  with open(fname, "w") as html_file:
-    log.info(f"Writing {fname}")
-    html_file.write(html_content)
-    log.info(f"Wrote   {fname}")
+  if 'svg' in savefig_fmts:
+    html_content_svg = html_content
+    html_content_svg = html_content_svg.replace("DIVS", divs_svg)
+    html_content_svg = html_content_svg.replace("SEARCH", search)
+    fname = f"{out_dir}/{server}/svg/{server}.html"
+    _write(fname, html_content_svg)
+
+  if 'png' in savefig_fmts:
+    html_content_png = html_content
+    html_content_png = html_content_png.replace("DIVS", divs_png)
+    html_content_png = html_content_png.replace("SEARCH", "")
+    fname = f"{out_dir}/{server}/png/{server}.html"
+    _write(fname, html_content_png)
 
 def process_server(server, catalogs_all):
 
@@ -299,10 +321,11 @@ def process_server(server, catalogs_all):
   if not all and server not in servers_only:
     return
 
-  lines = []
+  lines = ["dataset,start,stop"]
   datasets = []
   starts = []
   stops = []
+  log.info(f"{len(catalogs_all['catalog'])} datasets")
   for dataset in catalogs_all['catalog']:
     if 'info' not in dataset:
       log.error(f'No info node for {server}/{dataset["id"]}')
@@ -318,7 +341,7 @@ def process_server(server, catalogs_all):
     if stopDate is None:
       stopDate = 'Error'
 
-    line = f"{server},{dataset['id']},{startDate},{stopDate}"
+    line = f"{dataset['id']},{startDate},{stopDate}"
     lines.append(line)
     log.info(line.replace(",", "\t"))
 
@@ -328,16 +351,9 @@ def process_server(server, catalogs_all):
       datasets.append(dataset['id'])
 
   fname = f"{out_dir}/{server}/{server}.csv"
-  if not os.path.exists(os.path.dirname(fname)):
-    os.makedirs(os.path.dirname(fname))
-  with open(fname, 'w') as f:
-    log.info(f"Writing to {fname}")
-    f.write("\n".join(lines))
+  _write(fname, "\n".join(lines))
 
-  if len(datasets) == 0:
-    return
-
-  log.info(f"Plotting availability for {server}")
+  #log.info(f"Plotting availability for {server}")
   server_url = catalogs_all['x_URL']
   x_LastUpdate = catalogs_all['x_LastUpdate']
   title = f"{server}: {server_url}   {len(datasets)} datasets\n{x_LastUpdate}"
@@ -346,11 +362,9 @@ def process_server(server, catalogs_all):
                fig_width=fig_width, fig_height=fig_height)
 
   for savefig_fmt in savefig_fmts:
-    fname = f"{out_dir}/{server}/{server}-plots.{savefig_fmt}.json"
+    fname = os.path.join(out_dir, server, savefig_fmt, f"{server}.json")
     log.info(f"Writing {fname}")
-    with open(fname, 'w') as f:
-      json.dump(files, f, indent=2)
-      log.info(f"Wrote   {fname}")
+    _write(fname, files)
 
   html(files)
 
