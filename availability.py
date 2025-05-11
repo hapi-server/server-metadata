@@ -60,11 +60,12 @@ def plot(server, server_url, title, datasets, starts, stops,
   # text as paths. If text is written as paths, the SVG file will not
   # be searchable using CTRL+F.
   plt.rcParams['svg.fonttype'] = 'none'
+  plt.rcParams['font.family'] = 'times new roman'
 
   from datetick import datetick
 
   special_chars = {
-    'en': ' ',       # Unicode en space # https://unicode-explorer.com/c/2002
+    'ts': ' ',       # Unicode thin space
     'rarrow': '→ ',  # Unicode right arrow
     'larrow': '←'    # Unicode left arrow
   }
@@ -76,11 +77,11 @@ def plot(server, server_url, title, datasets, starts, stops,
     fig.set_figwidth(fig_width)
     return fig, ax
 
-  def config(ax, starts_min, stops_max, title, n_plots, fn_padded=None, left_margin=None, right_margin=None):
+  def config(ax, starts_min, stops_max, title=None, left_margin=None, right_margin=None):
 
-    if fn_padded is not None:
-      title = f'{title}    plot {fn_padded}/{n_plots}'
-    ax.set_title(title)
+    if title is not None:
+      ax.text(0.5, 1.0, title, transform=ax.transAxes, va='top', ha='center', fontsize=10, backgroundcolor='white',)
+      #ax.set_title(title)
     ax.set_xlim([starts_min, stops_max])
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
@@ -91,11 +92,11 @@ def plot(server, server_url, title, datasets, starts, stops,
     datetick('x')
     if left_margin is not None and right_margin is not None:
       plt.subplots_adjust(left=left_margin, right=right_margin)
-    plt.subplots_adjust(top=0.93, bottom=0.05)
+    plt.subplots_adjust(top=1.0, bottom=0.03)
 
   def id_strip(id):
     for key, value in special_chars.items():
-      id = id.replace(value, '')
+      id = id.strip().replace(value, '')
     return id
 
   def savefig(fn):
@@ -118,19 +119,33 @@ def plot(server, server_url, title, datasets, starts, stops,
 
     return f"{server}.{fn}"
 
-  def draw(ax, n, starts, stops, datasets, start_text, max_len):
+  def draw(ax, n, starts, stops, datasets, start_text, max_len=None):
     gid_bar = f"https://hapi-server.org/servers/#server={server}&dataset={id_strip(datasets[n])}"
     gid_txt = f"https://hapi-server.org/plot/?server={server_url}&dataset={id_strip(datasets[n])}&format=gallery&usecache=true&usedatacache=true&mode=thumb"
 
-    line, = ax.plot([starts[n], stops[n]], [n, n], gid=gid_bar, linewidth=5)
-    label = f'{datasets[n]:{max_len}s}'
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    color = colors[n % len(colors)]
+    line, = ax.plot([starts[n], stops[n]], [n, n], gid=gid_bar, linewidth=0.5)
+    rect = plt.Rectangle(
+              (starts[n][0], n - 0.4),
+              stops[n][0] - starts[n][0],
+              0.8,
+              color=color, alpha=1, gid=gid_bar)
+    rect.set_linewidth(0)
+    ax.add_patch(rect)
+
+    if max_len is None:
+      label = datasets[n].rstrip()
+    else:
+      label = f'{datasets[n]:{max_len}s}'
 
     text_kwargs = {
-      'family': 'monospace',
-      'color': line.get_color(),
+      #'family': 'monospace', # Causes extra right padding in SVG
+      'color': color,
       'verticalalignment': 'center',
       'size': 8,
-      'gid': gid_txt
+      'gid': gid_txt,
+      'bbox': dict(facecolor='white', alpha=0.5, pad=0, lw=0)
     }
     ax.text(stops[n], n, label, **text_kwargs)
     if start_text[n] is not None:
@@ -145,10 +160,7 @@ def plot(server, server_url, title, datasets, starts, stops,
   max_len = 0
   start_text = []
   for ds in range(len(datasets)):
-    # prefix with unicode em space
-    #   https://unicode-explorer.com/c/2002
-    # is needed, otherwise first letter overlaps with bar.
-    datasets[ds] = f"{special_chars['en']}{datasets[ds]}"
+    datasets[ds] = f"{special_chars['ts']}{datasets[ds]}"
     if stops[ds] > stops_max:
       stops[ds] = numpy.array([stops_max])
       datasets[ds] = f"{special_chars['rarrow']}{datasets[ds]}"
@@ -161,10 +173,10 @@ def plot(server, server_url, title, datasets, starts, stops,
 
   fig, ax = newfig()
   for n in range(len(datasets)):
-    draw(ax, n, starts, stops, datasets, start_text, max_len)
+    draw(ax, n, starts, stops, datasets, start_text, max_len=max_len)
 
   debug = False
-  config(ax, starts_min, stops_max, title, n_plots)
+  config(ax, starts_min, stops_max)
   l, b, w, h = ax.get_position().bounds
   if debug:
     file = savefig('all-before-tight-layout')
@@ -189,11 +201,12 @@ def plot(server, server_url, title, datasets, starts, stops,
   files = []
   fig, ax = newfig()
   for n in range(len(datasets)):
-    draw(ax, n, starts, stops, datasets, start_text, max_len)
+    draw(ax, n, starts, stops, datasets, start_text)
     if (n + 1) % lines_per_plot == 0:
       fn = fn + 1
       fn_padded = f"{fn:0{pad}d}"
-      config(ax, starts_min, stops_max, title, n_plots, fn_padded, left_margin, right_margin)
+      title_ = title + f" | {fn}/{n_plots}"
+      config(ax, starts_min, stops_max, title_, left_margin, right_margin)
       file = savefig(fn_padded)
       files.append(file)
 
@@ -203,7 +216,8 @@ def plot(server, server_url, title, datasets, starts, stops,
   if (n + 1) % lines_per_plot != 0:
     fn = fn + 1
     fn_padded = f"{fn:0{pad}d}"
-    config(ax, starts_min, stops_max, title, n_plots, fn_padded, left_margin, right_margin)
+    title_ = title + f" | {fn}/{n_plots}"
+    config(ax, starts_min, stops_max, title_, left_margin, right_margin)
     file = savefig(fn)
     files.append(file)
 
@@ -237,15 +251,10 @@ def html(files):
     <title>TITLE</title>
   </head>
   <body>
-    <h1>TITLE</h1>
-    <p>
-      Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=TITLE" target="_blank">TITLE</a> HAPI server.
-    </p>
-    <ul>
-      <li>Data for plots: <a href="../TITLE.csv" target="_blank">TITLE.csv</a></li>
-      <li><a href="../" target="_blank">Plot files</a></li>
-      <li><a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a></li>
-    </ul>
+      Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=TITLE" target="_blank">TITLE</a> HAPI server. 
+      <a href="../TITLE.csv" target="_blank">Time range data</a> | 
+      <a href="../" target="_blank">Plot files</a> |
+      <a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a>
     SEARCH
     DIVS
   </body>
@@ -253,8 +262,9 @@ def html(files):
   """
 
   search = """
-    <h2>Search</h2>
-    <ul>
+    <br>
+    <b>Search:</b>
+    <ul style="margin-top:0.2em; margin-bottom:0.2em; padding-inline-start: 1.5em;">
       <li>Use <script>document.write(searchKey());</script> to search for a dataset.</li>
       <li>Click a dataset name to view information about dataset.</li>
       <li>Click a bar to view plots of parameters in dataset.</li>
@@ -273,7 +283,6 @@ def html(files):
         svg_data = f.read()
         divs_svg += svg_data.decode('utf-8')
       file = os.path.basename(file)
-      divs_svg += f'<img width="100%" src="{file}" alt="{file}">\n'
     if 'png' in savefig_fmts:
       file_png = os.path.join(out_dir, server, "png", f"{file}.png")
       with open(file_png, "rb") as f:
@@ -357,7 +366,7 @@ def process_server(server, catalogs_all):
   #log.info(f"Plotting availability for {server}")
   server_url = catalogs_all['x_URL']
   x_LastUpdate = catalogs_all['x_LastUpdate']
-  title = f"{server}: {server_url}   {len(datasets)} datasets\n{x_LastUpdate}"
+  title = f"{server} | {server_url} | {len(datasets)} datasets | {x_LastUpdate}"
   files = plot(server, server_url, title, datasets, starts, stops,
                lines_per_plot=lines_per_plot,
                fig_width=fig_width, fig_height=fig_height)
