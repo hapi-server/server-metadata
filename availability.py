@@ -27,9 +27,8 @@ fig_height = fig_height/dpi # inches
 out_dir      = 'data/availability'     # Output directory
 catalogs_all = 'data/catalogs-all.pkl' # Input file
 
-all = True
+servers_only = None
 if len(sys.argv) > 1:
-  all = False
   servers_only = sys.argv[1].split(',')
   log.info(f"Generating availability for '{servers_only}'")
 else:
@@ -328,7 +327,7 @@ def process_server(server, catalogs_all):
 
     return info[key], dt
 
-  if not all and server not in servers_only:
+  if servers_only is not None and server not in servers_only:
     return
 
   lines = ["dataset,start,stop"]
@@ -378,6 +377,8 @@ def process_server(server, catalogs_all):
 
   html(files)
 
+  return lines
+
 if max_workers == 1:
   for server in catalogs_all.keys():
     process_server(server, catalogs_all[server])
@@ -387,6 +388,22 @@ else:
     process_server(server, catalogs_all[server])
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
     pool.map(call, catalogs_all.keys())
+
+all = {}
+lines = []
+for server in catalogs_all.keys():
+  if servers_only is not None and server not in servers_only:
+    continue
+  csv = os.path.join(out_dir, server, f"{server}.csv")
+  csv = utilrsw.read(csv)
+  all[server] = csv[1:] # 1: to remove header
+  for dataset in all[server]:
+    dataset.insert(0, server)
+    lines.append(dataset)
+
+_write(f"{out_dir}/all.json", all)
+_write(f"{out_dir}/all.pkl", all)
+_write(f"{out_dir}/all.csv", lines)
 
 # Remove error log file if empty.
 utilrsw.rm_if_empty("availability.errors.log")

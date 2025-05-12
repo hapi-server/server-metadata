@@ -1,5 +1,6 @@
 hapimeta.egg-info/
 .DS_Store
+__pycache__/
 hapimeta/__pycache__/
 data/
 servers/

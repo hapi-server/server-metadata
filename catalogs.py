@@ -5,7 +5,7 @@ debug        = False
 data_dir     = 'data'
 servers_only = None # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
-timeout      = 40   # Set to small value to force failures.
+timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
