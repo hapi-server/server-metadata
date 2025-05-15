@@ -9,6 +9,7 @@ def version():
 __version__ = version()
 
 logger_kwargs = {
+  "log_dir": "log",
   "console_format": u"%(asctime)s.%(msecs)03dZ %(levelname)s %(message)s",
   "file_format": u"%(levelname)s %(message)s",
   "datefmt": "%H:%M:%S",

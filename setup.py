@@ -1,8 +1,7 @@
-import os
 import json
 from setuptools import setup, find_packages
 
-install_requires = ["hapiplot", "hapiclient", "lxml"]
+install_requires = ["hapiplot", "hapiclient"]
 install_requires.append("datetick @ git+https://github.com/rweigel/datetick")
 install_requires.append("utilrsw @ git+https://github.com/rweigel/utilrsw")
 

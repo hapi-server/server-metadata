@@ -4,10 +4,11 @@
 import os
 import sys
 import pickle
+import pandas
 
 import utilrsw
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from hapiclient import hapitime2datetime
 from hapimeta import logger_kwargs
 
@@ -126,8 +127,8 @@ def plot(server, server_url, title, datasets, starts, stops,
     color = colors[n % len(colors)]
     line, = ax.plot([starts[n], stops[n]], [n, n], gid=gid_bar, linewidth=0.5)
     rect = plt.Rectangle(
-              (starts[n][0], n - 0.4),
-              stops[n][0] - starts[n][0],
+              (starts[n], n - 0.4),
+              stops[n] - starts[n],
               0.8,
               color=color, alpha=1, gid=gid_bar)
     rect.set_linewidth(0)
@@ -154,17 +155,17 @@ def plot(server, server_url, title, datasets, starts, stops,
   n_plots = math.ceil(len(datasets)/lines_per_plot)
   pad = math.ceil(math.log10(n_plots))
   starts_min = numpy.min(starts)
-  stops_max = datetime.now(timezone.utc) + timedelta(days=5*365)
-  starts_min = datetime(1960, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+  stops_max = datetime.now() + timedelta(days=5*365)
+  starts_min = datetime(1960, 1, 1, 0, 0, 0)
   max_len = 0
   start_text = []
   for ds in range(len(datasets)):
     datasets[ds] = f"{special_chars['ts']}{datasets[ds]}"
     if stops[ds] > stops_max:
-      stops[ds] = numpy.array([stops_max])
+      stops[ds] = stops_max
       datasets[ds] = f"{special_chars['rarrow']}{datasets[ds]}"
     if starts[ds] < starts_min:
-      starts[ds] = numpy.array([starts_min])
+      starts[ds] = starts_min
       start_text.append(special_chars['larrow'])
     else:
       start_text.append(None)
@@ -173,6 +174,7 @@ def plot(server, server_url, title, datasets, starts, stops,
   fig, ax = newfig()
   for n in range(len(datasets)):
     draw(ax, n, starts, stops, datasets, start_text, max_len=max_len)
+
 
   debug = False
   config(ax, starts_min, stops_max)
@@ -319,18 +321,16 @@ def process_server(server, catalogs_all):
     hapitime = info[key]
     try:
       dt = hapitime2datetime(hapitime, allow_missing_Z=True)
+      dt = dt[0].replace(tzinfo=None)
     except Exception as e:
       import traceback
       trace = traceback.format_exc()
       log.error(f"{server}/{dataset['id']}: hapitime2datetime({hapitime}) returned:\n{trace}")
-      return hapitime, None
+      return None, None
 
     return info[key], dt
 
-  if servers_only is not None and server not in servers_only:
-    return
-
-  lines = ["dataset,start,stop"]
+  lines = []
   datasets = []
   starts = []
   stops = []
@@ -344,23 +344,20 @@ def process_server(server, catalogs_all):
     info = dataset['info']
 
     startDate, startDate_datetime = extract_time(info, 'startDate')
-    if startDate is None:
-      startDate = 'Error'
     stopDate, stopDate_datetime = extract_time(info, 'stopDate')
-    if stopDate is None:
-      stopDate = 'Error'
-
-    line = f"{dataset['id']},{startDate},{stopDate}"
-    lines.append(line)
-    log.info(line.replace(",", "\t"))
 
     if startDate_datetime is not None and stopDate_datetime is not None:
+      line_str = [server, dataset["id"], startDate, stopDate]
+      log.info(", ".join(line_str))
+      line = [server, dataset["id"], startDate_datetime, stopDate_datetime]
+      lines.append(line)
       stops.append(stopDate_datetime)
       starts.append(startDate_datetime)
       datasets.append(dataset['id'])
 
+  df = pandas.DataFrame(lines, columns=["server", "dataset", "start", "stop"])
   fname = f"{out_dir}/{server}/{server}.csv"
-  _write(fname, "\n".join(lines))
+  _write(fname, df)
 
   #log.info(f"Plotting availability for {server}")
   server_url = catalogs_all['x_URL']
@@ -377,33 +374,29 @@ def process_server(server, catalogs_all):
 
   html(files)
 
-  return lines
+  return df
+
+servers = []
+for server in catalogs_all.keys():
+  if servers_only is not None and server not in servers_only:
+    continue
+  servers.append(server)
 
 if max_workers == 1:
-  for server in catalogs_all.keys():
-    process_server(server, catalogs_all[server])
+  dfs = []
+  for server in servers:
+    df = process_server(server, catalogs_all[server])
+    dfs.append(df)
 else:
   from concurrent.futures import ThreadPoolExecutor
   def call(server):
     process_server(server, catalogs_all[server])
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
-    pool.map(call, catalogs_all.keys())
+    pool.map(call, servers)
 
-all = {}
-lines = []
-for server in catalogs_all.keys():
-  if servers_only is not None and server not in servers_only:
-    continue
-  csv = os.path.join(out_dir, server, f"{server}.csv")
-  csv = utilrsw.read(csv)
-  all[server] = csv[1:] # 1: to remove header
-  for dataset in all[server]:
-    dataset.insert(0, server)
-    lines.append(dataset)
-
-_write(f"{out_dir}/all.json", all)
-_write(f"{out_dir}/all.pkl", all)
-_write(f"{out_dir}/all.csv", lines)
+dfs = pandas.concat(dfs, ignore_index=True)
+_write(f"{out_dir}/all.pkl", df)
+_write(f"{out_dir}/all.csv", df)
 
 # Remove error log file if empty.
 utilrsw.rm_if_empty("availability.errors.log")
