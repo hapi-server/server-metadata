@@ -13,7 +13,8 @@ logger_kwargs = {
   "console_format": u"%(asctime)s.%(msecs)03dZ %(levelname)s %(message)s",
   "file_format": u"%(levelname)s %(message)s",
   "datefmt": "%H:%M:%S",
-  "color": True
+  "color": True,
+  "debug_logger": False
 }
 
 def get(url, log=None, timeout=20, indent=""):

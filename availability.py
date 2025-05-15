@@ -5,6 +5,7 @@ import os
 import sys
 import pickle
 import pandas
+import warnings
 
 import utilrsw
 
@@ -14,7 +15,11 @@ from hapimeta import logger_kwargs
 
 log = utilrsw.logger(**logger_kwargs)
 
-max_workers    = 1      # Number of servers to process in parallel
+warnings.filterwarnings("ignore", message="missing from current font.")
+
+# Number of servers to process in parallel (> 1 not working b/c
+# matplotlib not used in thread-safe manner)
+max_workers    = 1
 lines_per_plot = 50     # Number of time range bars per plot
 # File formats to save. 'png' and 'svg' are supported.
 savefig_fmts = ['svg', 'png']
@@ -25,19 +30,8 @@ fig_width  = fig_width/dpi  # inches
 fig_height = 2160           # pixels
 fig_height = fig_height/dpi # inches
 
-out_dir      = 'data/availability'     # Output directory
-catalogs_all = 'data/catalogs-all.pkl' # Input file
-
-servers_only = None
-if len(sys.argv) > 1:
-  servers_only = sys.argv[1].split(',')
-  log.info(f"Generating availability for '{servers_only}'")
-else:
-  log.info(f"Generating availability for all servers in {catalogs_all}")
-
-
-with open(catalogs_all, 'rb') as f:
-  catalogs_all = pickle.load(f)
+out_dir           = 'data/availability'     # Output directory
+catalogs_all_file = 'data/catalogs-all.pkl' # Input file
 
 def _write(fname, data, logger=None):
   try:
@@ -55,7 +49,6 @@ def plot(server, server_url, title, datasets, starts, stops,
   import numpy
 
   import matplotlib.pyplot as plt
-  #matplotlib.set_loglevel('warning')
   # The following is needed to prevent Matplotlib from writing
   # text as paths. If text is written as paths, the SVG file will not
   # be searchable using CTRL+F.
@@ -376,6 +369,16 @@ def process_server(server, catalogs_all):
 
   return df
 
+with open(catalogs_all_file, 'rb') as f:
+  catalogs_all = pickle.load(f)
+
+servers_only = None
+if len(sys.argv) > 1:
+  servers_only = sys.argv[1].split(',')
+  log.info(f"Generating availability for {servers_only}")
+else:
+  log.info(f"Generating availability for all servers in {catalogs_all_file}")
+
 servers = []
 for server in catalogs_all.keys():
   if servers_only is not None and server not in servers_only:
@@ -390,13 +393,13 @@ if max_workers == 1:
 else:
   from concurrent.futures import ThreadPoolExecutor
   def call(server):
-    process_server(server, catalogs_all[server])
+    return process_server(server, catalogs_all[server])
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
-    pool.map(call, servers)
+    dfs = list(pool.map(call, servers))
 
 dfs = pandas.concat(dfs, ignore_index=True)
 _write(f"{out_dir}/all.pkl", df)
 _write(f"{out_dir}/all.csv", df)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty("availability.errors.log")
+utilrsw.rm_if_empty("log/availability.errors.log")
