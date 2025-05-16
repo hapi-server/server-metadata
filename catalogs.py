@@ -9,40 +9,52 @@ timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
-  servers_only = ['CDAWeb']
-  max_infos = 2
+  servers_only = None
+  max_infos = 1
 
 files = {
-  'servers': 'servers/servers.json',
-  'catalogs': 'servers/data/catalogs.json',
-  'catalogs_all': 'servers/data/catalogs-all.json',
+  'servers': 'data/abouts.json',
+  'catalogs': 'data/catalogs.json',
+  'catalogs_all': 'data/catalogs-all.json',
 }
 
 log = utilrsw.logger(**logger_kwargs)
 
 def get_catalogs(servers, servers_only=None):
+
   catalogs = {}
-  for obj in servers['servers']:
-    server_id = obj['id']
+  for about in servers['servers']:
+
+    now = utilrsw.utc_now()
+    server_id = about['id']
+
     if servers_only is not None and server_id not in servers_only:
       log.info(server_id)
       log.info("  Skipping because not in servers_only.")
       continue
+
     log.info(server_id)
     try:
-      catalog = get(f"{obj['url']}/catalog", log=log, indent="  ", timeout=timeout)
+      catalog = get(f"{about['url']}/catalog", log=log, indent="  ", timeout=timeout)
     except Exception as e:
       log.error(f"  {e}")
       catalog = {
-        'x_LastUpdateAttempt': utilrsw.utc_now(),
+        'x_LastUpdateAttempt': now,
         'x_LastUpdateError': str(e)
       }
 
     if 'catalog' not in catalog:
       catalog = {
-        'x_LastUpdateAttempt': utilrsw.utc_now(),
+        'x_LastUpdateAttempt': now,
         'x_LastUpdateError': "No catalog node in JSON response."
       }
+
+    catalog['about'] = about
+
+    if 'HAPI' in catalog:
+      del catalog["HAPI"]
+    if 'status' in catalog:
+      del catalog["status"]
 
     fname = f"{data_dir}/catalogs/{server_id}.json"
     if 'x_LastUpdateError' in catalog:
@@ -56,14 +68,22 @@ def get_catalogs(servers, servers_only=None):
         log.info("  No last successful /catalog response found.")
         continue
     else:
-      catalog['x_LastUpdate'] = utilrsw.utc_now()
+      catalog['x_LastUpdate'] = now
 
-    catalog['x_URL'] = obj['url']
+    catalog_reordered = {}
+    if 'x_LastUpdate' in catalog:
+      catalog_reordered['x_LastUpdate'] = catalog['x_LastUpdate']
+    if 'x_LastUpdateAttempt' in catalog:
+      catalog_reordered['x_LastUpdateAttempt'] = catalog['x_LastUpdateAttempt']
+    if 'x_LastUpdateError' in catalog:
+      catalog_reordered['x_LastUpdateError'] = catalog['x_LastUpdateError']
+    catalog_reordered['about'] = catalog['about']
+    catalog_reordered['catalog'] = catalog['catalog']
 
-    catalogs[server_id] = catalog
+    catalogs[server_id] = catalog_reordered
 
     try:
-      utilrsw.write(fname, catalog)
+      utilrsw.write(fname, catalog_reordered)
     except:
       log.error(f"Error writing {fname}. Exiting with code 1.")
       exit(1)
@@ -82,7 +102,7 @@ def get_infos(cid, catalog, max_infos=None):
     id = dataset['id']
     log.info(id)
     try:
-      info = get(f"{catalog['x_URL']}/info?id={id}", timeout=timeout, log=log, indent="  ")
+      info = get(f"{catalog['about']['url']}/info?id={id}", timeout=timeout, log=log, indent="  ")
       info['x_LastUpdate'] = utilrsw.utc_now()
     except Exception as e:
       info = {
@@ -111,9 +131,10 @@ def get_infos(cid, catalog, max_infos=None):
       info['x_LastUpdate'] = utilrsw.utc_now()
 
     try:
+      log.info(f"  Writing {fname}")
       utilrsw.write(fname, info)
-    except:
-      log.error(f"  Error writing {fname}")
+    except Exception as e:
+      log.error(f"  Error writing {fname}: {e}")
 
     if 'parameter' in info['parameters']:
       for parameter in info['parameters']:
@@ -122,6 +143,8 @@ def get_infos(cid, catalog, max_infos=None):
             del parameter['bins']['centers']
           if 'ranges' in parameter['ranges']:
             del parameter['bins']['ranges']
+
+    dataset['info'] = info
 
     if max_infos is not None and n >= max_infos:
       log.info(f"Stoping because {max_infos} /info requests made.")
@@ -171,18 +194,26 @@ log.info(40*"-")
 log.info("Finished /info requests.")
 log.info(40*"-")
 
-try:
-  utilrsw.write(files['catalogs_all'], catalogs, logger=log)
-except:
-  log.error(f"Error writing {files['catalogs_all']}. Exiting with code 1.")
-  exit(1)
+for file in ['catalogs_all', 'catalogs']:
 
-file_pkl = files['catalogs_all'].replace('.json', '.pkl')
-try:
-  utilrsw.write(file_pkl, catalogs, logger=log)
-except:
-  log.error(f"Error writing {file_pkl}. Exiting with code 1.")
-  exit(1)
+  if file == 'catalogs':
+    for server in catalogs.keys():
+      for dataset in catalogs[server]['catalog']:
+        if 'info' in dataset:
+          del dataset['info']
+
+  try:
+    utilrsw.write(files[file], catalogs, logger=log)
+  except Exception as e:
+    log.error(f"Error writing {files[file]}: {e}. Exiting with code 1.")
+    exit(1)
+
+  file_pkl = files[file].replace('.json', '.pkl')
+  try:
+    utilrsw.write(file_pkl, catalogs, logger=log)
+  except Exception as e:
+    log.error(f"Error writing {file_pkl}: {e}. Exiting with code 1.")
+    exit(1)
 
 # Remove error log file if empty.
 utilrsw.rm_if_empty("catalogs.errors.log")

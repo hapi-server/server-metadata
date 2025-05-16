@@ -5,15 +5,18 @@ from hapimeta import get, logger_kwargs
 
 log = utilrsw.logger(**logger_kwargs)
 
-fname_in   = 'servers/servers.json'
-fname_out  = 'servers/servers.updated.json'
+# Reads and write to servers subdir, which is
+# https://github.com/hapi-server/servers
+fname_in   = 'servers/abouts.json'
+fname_out  = 'data/abouts.json'
 fname_all1 = 'servers/all_.updated.txt'
 fname_all2 = 'servers/all.updated.txt'
 
 def equivalent_dicts(servers, about):
   diff = False
   for k1, v1 in servers.items():
-    if k1.startswith("x_"): continue
+    if k1.startswith("x_"):
+      continue
     if k1 not in about:
       log.info(f"  key '{k1}' not in /about response")
       #diff = True
@@ -44,8 +47,10 @@ for idx in range(len(servers['servers'])):
     continue
 
   server['x_LastUpdate'] = utilrsw.utc_now()
-  del about["HAPI"]
-  del about["status"]
+
+  if 'status' in about:
+    del about["status"]
+
   if not equivalent_dicts(server, about):
     log.info(f"  No difference between servers.json[{server['id']}] and {server['url']}")
   else:
@@ -74,4 +79,4 @@ else:
   log.info(msg)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty("servers.errors.log")
+utilrsw.rm_if_empty("log/servers.errors.log")

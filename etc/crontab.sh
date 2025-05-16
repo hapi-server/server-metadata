@@ -5,9 +5,9 @@ else
 fi
 pip install -e .
 
-python servers.py
+python about.py
 git -C servers commit -a -m "Update servers.json, ... [skip ci]"
 git  -C servers push
 
 python catalogs.py
-python availability.py
+python availabilities.py

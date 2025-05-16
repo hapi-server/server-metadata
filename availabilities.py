@@ -3,9 +3,7 @@
 
 import os
 import sys
-import pickle
 import pandas
-import warnings
 
 import utilrsw
 
@@ -15,12 +13,10 @@ from hapimeta import logger_kwargs
 
 log = utilrsw.logger(**logger_kwargs)
 
-warnings.filterwarnings("ignore", message="missing from current font.")
-
-# Number of servers to process in parallel (> 1 not working b/c
-# matplotlib not used in thread-safe manner)
-max_workers    = 1
-lines_per_plot = 50     # Number of time range bars per plot
+debug_layout = False
+debug_svglinks = False
+# Number of time range bars per plot
+lines_per_plot = 50
 # File formats to save. 'png' and 'svg' are supported.
 savefig_fmts = ['svg', 'png']
 
@@ -30,10 +26,11 @@ fig_width  = fig_width/dpi  # inches
 fig_height = 2160           # pixels
 fig_height = fig_height/dpi # inches
 
-out_dir           = 'data/availability'     # Output directory
-catalogs_all_file = 'data/catalogs-all.pkl' # Input file
+out_dir           = 'data' # Output directory
+base_dir          = os.path.join(out_dir, 'availability') # Base directory
+catalogs_all_file = f'{out_dir}/catalogs-all.pkl' # Input file
 
-def _write(fname, data, logger=None):
+def write(fname, data, logger=None):
   try:
     log.info(f"Writing {fname}")
     utilrsw.write(fname, data, logger=logger)
@@ -41,7 +38,7 @@ def _write(fname, data, logger=None):
     log.error(f"Error writing {fname}: {e}")
     raise e
 
-def plot(server, server_url, title, datasets, starts, stops,
+def plot(server, server_url, server_dir, title, datasets, starts, stops,
          lines_per_plot=lines_per_plot,
          fig_width=fig_width, fig_height=fig_height):
 
@@ -93,18 +90,17 @@ def plot(server, server_url, title, datasets, starts, stops,
     return id
 
   def savefig(fn):
-    base_dir = os.path.join(out_dir, server)
 
     if 'svg' in savefig_fmts:
-      _fname = os.path.join(base_dir, "svg", f"{server}.{fn}.svg")
+      _fname = os.path.join(server_dir, "svg", f"{server}.{fn}.svg")
       if not os.path.exists(os.path.dirname(_fname)):
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
       plt.savefig(f"{_fname}")
-      utilrsw.svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug)
+      utilrsw.svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug_svglinks)
 
     if 'png' in savefig_fmts:
-      _fname = os.path.join(base_dir, "png", f"{server}.{fn}.png")
+      _fname = os.path.join(server_dir, "png", f"{server}.{fn}.png")
       if not os.path.exists(os.path.dirname(_fname)):
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
@@ -168,11 +164,9 @@ def plot(server, server_url, title, datasets, starts, stops,
   for n in range(len(datasets)):
     draw(ax, n, starts, stops, datasets, start_text, max_len=max_len)
 
-
-  debug = False
   config(ax, starts_min, stops_max)
   l, b, w, h = ax.get_position().bounds
-  if debug:
+  if debug_layout:
     file = savefig('all-before-tight-layout')
     print(f"Left margin: {l}")
     print(f"Bottom margin: {b}")
@@ -180,7 +174,7 @@ def plot(server, server_url, title, datasets, starts, stops,
     print(f"Height: {h}")
   fig.tight_layout()
   l, b, w, h = ax.get_position().bounds
-  if debug:
+  if debug_layout:
     file = savefig('all-after-tight-layout')
     print(f"Left margin: {l}")
     print(f"Bottom margin: {b}")
@@ -217,7 +211,7 @@ def plot(server, server_url, title, datasets, starts, stops,
 
   return files
 
-def html(files):
+def html(files, server_dir):
   import base64
 
   # Create the HTML content with the embedded PNG data
@@ -233,6 +227,21 @@ def html(files):
   }
   </script>
   <head>
+    <style>
+      /* Force scrollbar to show on OS-X (so user knows it is scrollable */
+      /* https://simurai.com/blog/2011/07/26/webkit-scrollbar */
+      /* Needed here for when this page is in an iframe */
+      body::-webkit-scrollbar {
+        -webkit-appearance: none;
+        width: 7px;
+        height: 7px;
+      }
+      body::-webkit-scrollbar-thumb {
+          border-radius: 4px;
+          background-color: rgba(0,0,0,.5);
+          box-shadow: 0 0 1px rgba(255,255,255,.5);
+      }
+    </style>
     <link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAA0ODwAASP8Ab/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIiIgAAAAAAAAAAAAAAAAAAAAAAAAAAADMzMzMzMwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARERERAAAAAAAAAAAAAAAAAAAAAAAAAAAEREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAA//8AAAP/AAD//wAA//8AAAAPAAD//wAA//8AAP//AAAA/wAA//8AAP//AAAAAAAA//8AAP//AAD//wAA">
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-5X7EXZ3BBW"></script><script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);} gtag("js", new Date());gtag("config", "G-5X7EXZ3BBW");</script>
     <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
@@ -265,20 +274,20 @@ def html(files):
     </ul>
   """
 
-  # Remove leading and trailing whitespace from each line
-  html_content = "\n".join([line.strip() for line in html_content.split("\n")])
-
+  # Remove leading two spaces from each line
+  html_content = "\n".join([line[2:] for line in html_content.split("\n")])
+  html_content = html_content[1:] # Remove first line break
   divs_svg = ""
   divs_png = ""
   for file in files:
     if 'svg' in savefig_fmts:
-      file_svg = os.path.join(out_dir, server, "svg", f"{file}.svg")
+      file_svg = os.path.join(server_dir, "svg", f"{file}.svg")
       with open(file_svg, "rb") as f:
         svg_data = f.read()
         divs_svg += svg_data.decode('utf-8')
       file = os.path.basename(file)
     if 'png' in savefig_fmts:
-      file_png = os.path.join(out_dir, server, "png", f"{file}.png")
+      file_png = os.path.join(server_dir, "png", f"{file}.png")
       with open(file_png, "rb") as f:
         png_data = f.read()
         png_base64 = base64.b64encode(png_data).decode('utf-8')
@@ -290,25 +299,29 @@ def html(files):
     html_content_svg = html_content
     html_content_svg = html_content_svg.replace("DIVS", divs_svg)
     html_content_svg = html_content_svg.replace("SEARCH", search)
-    fname = f"{out_dir}/{server}/svg/{server}.html"
-    _write(fname, html_content_svg)
+    fname = os.path.join(os.path.dirname(file_svg), f'{server}.html')
+    write(fname, html_content_svg)
 
   if 'png' in savefig_fmts:
     html_content_png = html_content
     html_content_png = html_content_png.replace("DIVS", divs_png)
     html_content_png = html_content_png.replace("SEARCH", "")
-    fname = f"{out_dir}/{server}/png/{server}.html"
-    _write(fname, html_content_png)
+    fname = os.path.join(os.path.dirname(file_png), f'{server}.html')
+    write(fname, html_content_png)
 
 def process_server(server, catalogs_all):
 
   def extract_time(info, key):
     if key not in info:
-      log.error(f"{server}/{dataset['id']}: key '{key}' is not in info")
+      log.error(f"{server} {dataset['id']}: key '{key}' is not in info")
+      return None, None
+
+    if info[key] is None:
+      log.error(f"{server} {dataset['id']}: info[{key}] is None")
       return None, None
 
     if info[key].strip() == "":
-      log.error(f"{server}/{dataset['id']}: info[{key}].strip() = ''")
+      log.error(f"{server} {dataset['id']}: info[{key}].strip() = ''")
       return None, None
 
     hapitime = info[key]
@@ -318,7 +331,7 @@ def process_server(server, catalogs_all):
     except Exception as e:
       import traceback
       trace = traceback.format_exc()
-      log.error(f"{server}/{dataset['id']}: hapitime2datetime({hapitime}) returned:\n{trace}")
+      log.error(f"{server} {dataset['id']}: hapitime2datetime({hapitime}) returned:\n{trace}")
       return None, None
 
     return info[key], dt
@@ -329,8 +342,9 @@ def process_server(server, catalogs_all):
   stops = []
   log.info(f"{len(catalogs_all['catalog'])} datasets")
   for dataset in catalogs_all['catalog']:
+
     if 'info' not in dataset:
-      log.error(f"No 'info' key in {server}/{dataset['id']}")
+      log.error(f"{server} {dataset['id']}: No 'info' key")
       print(server, dataset['id'], None, None)
       continue
 
@@ -349,28 +363,29 @@ def process_server(server, catalogs_all):
       datasets.append(dataset['id'])
 
   df = pandas.DataFrame(lines, columns=["server", "dataset", "start", "stop"])
-  fname = f"{out_dir}/{server}/{server}.csv"
-  _write(fname, df)
+
+  server_dir = os.path.join(base_dir, server)
+  fname = os.path.join(server_dir, f'{server}.csv')
+  write(fname, df)
 
   #log.info(f"Plotting availability for {server}")
-  server_url = catalogs_all['x_URL']
+  server_url = catalogs_all['about']['url']
   x_LastUpdate = catalogs_all['x_LastUpdate']
   title = f"{server} | {server_url} | {len(datasets)} datasets | {x_LastUpdate}"
-  files = plot(server, server_url, title, datasets, starts, stops,
+  files = plot(server, server_url, server_dir, title, datasets, starts, stops,
                lines_per_plot=lines_per_plot,
                fig_width=fig_width, fig_height=fig_height)
 
   for savefig_fmt in savefig_fmts:
-    fname = os.path.join(out_dir, server, savefig_fmt, f"{server}.json")
+    fname = os.path.join(server_dir, savefig_fmt, f"{server}.json")
     log.info(f"Writing {fname}")
-    _write(fname, files)
+    write(fname, files)
 
-  html(files)
+  html(files, server_dir)
 
   return df
 
-with open(catalogs_all_file, 'rb') as f:
-  catalogs_all = pickle.load(f)
+catalogs_all = utilrsw.read(catalogs_all_file)
 
 servers_only = None
 if len(sys.argv) > 1:
@@ -385,21 +400,13 @@ for server in catalogs_all.keys():
     continue
   servers.append(server)
 
-if max_workers == 1:
-  dfs = []
-  for server in servers:
-    df = process_server(server, catalogs_all[server])
-    dfs.append(df)
-else:
-  from concurrent.futures import ThreadPoolExecutor
-  def call(server):
-    return process_server(server, catalogs_all[server])
-  with ThreadPoolExecutor(max_workers=max_workers) as pool:
-    dfs = list(pool.map(call, servers))
-
+dfs = []
+for server in servers:
+  df = process_server(server, catalogs_all[server])
+  dfs.append(df)
 dfs = pandas.concat(dfs, ignore_index=True)
-_write(f"{out_dir}/all.pkl", df)
-_write(f"{out_dir}/all.csv", df)
+write(f"{out_dir}/availability.pkl", df)
+write(f"{out_dir}/availability.csv", df)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty("log/availability.errors.log")
+utilrsw.rm_if_empty(os.path.join("log", "availability.errors.log"))
