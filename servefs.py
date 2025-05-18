@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 
 try:
-  with open("data/availability/all.pkl", "rb") as file:
+  with open("data/availabilities/availabilities.pkl", "rb") as file:
     DATAFRAME = pickle.load(file)
 except FileNotFoundError:
   raise HTTPException(status_code=500, detail="Data file not found")
