@@ -27,7 +27,7 @@ fig_height = 2160           # pixels
 fig_height = fig_height/dpi # inches
 
 out_dir           = 'data' # Output directory
-base_dir          = os.path.join(out_dir, 'availability') # Base directory
+base_dir          = os.path.join(out_dir, 'availabilities') # Base directory
 catalogs_all_file = f'{out_dir}/catalogs-all.pkl' # Input file
 
 def write(fname, data, logger=None):
@@ -405,8 +405,8 @@ for server in servers:
   df = process_server(server, catalogs_all[server])
   dfs.append(df)
 dfs = pandas.concat(dfs, ignore_index=True)
-write(f"{out_dir}/availability.pkl", df)
-write(f"{out_dir}/availability.csv", df)
+write(f"{base_dir}/availabilities.pkl", df)
+write(f"{base_dir}/availabilities.csv", df)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty(os.path.join("log", "availability.errors.log"))
+utilrsw.rm_if_empty(os.path.join("log", "availabilities.errors.log"))

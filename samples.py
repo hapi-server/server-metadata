@@ -2,18 +2,16 @@
 #   python samples.py --server [server_id1,server_id2,...] --dataset dataset_id
 #   prefix server id or dataset id with ^ to trigger regex match.
 
-import sys
-import warnings
+import datetime
 
 import utilrsw
 
+import hapiclient
+
 from hapimeta import logger_kwargs
-from hapiclient import hapi
 from hapiplot import hapiplot
 
 log = utilrsw.logger(**logger_kwargs)
-
-warnings.filterwarnings("ignore", message="missing from current font.")
 
 # Number of servers to process in parallel (> 1 not working b/c
 # matplotlib not used in thread-safe manner)
@@ -85,6 +83,7 @@ def process_server(catalog_all, server, datasets_only):
     return hapitime, hapitimeSample
 
   log.info(f"server: {server} | {len(catalog_all['catalog'])} datasets")
+  server_url = catalog_all['about']['url']
   for dataset in catalog_all['catalog']:
 
     if 'id' not in dataset:
@@ -95,7 +94,7 @@ def process_server(catalog_all, server, datasets_only):
       log.error(f"  id={dataset['id']}: No 'info' key. Skipping.")
       continue
 
-    if dataset['id'] not in datasets_only:
+    if datasets_only is not None and dataset['id'] not in datasets_only:
       log.info(f"  id={dataset['id']}: skipping dataset due to --dataset option")
       continue
 
@@ -116,18 +115,33 @@ def process_server(catalog_all, server, datasets_only):
     log.info(f"  sampleStopDate  = {sampleStopDate}")
     log.info("  parameters:")
 
+    if sampleStartDate is not None and sampleStopDate is not None:
+      startDate = sampleStartDate
+      stopDate = sampleStopDate
+    else:
+      startDate = startDate
+      stopDate = hapiclient.hapitime2datetime(startDate, allow_missing_Z=True)[0]
+      stopDate = stopDate + datetime.timedelta(days=1)
+      stopDate = datetime.strptime(stopDate, "%Y-%m-%dT%H:%M:%S.%fZ")
+
     for i, parameter in enumerate(parameters):
       log.info(f"     {i}. {parameter['name']}")
       try:
-        data, meta = hapi(server, dataset['id'], parameter['name'], startDate, stopDate, logging=True)
+        data, meta = hapiclient.hapi(server_url, dataset['id'], parameter['name'], startDate, stopDate, logging=True)
       except Exception as e:
-        log.error(f"  {server}/{dataset['id']}: Error getting data: {e}")
+        log.error(f"  {server} {dataset['id']}: Error getting data: {e}")
+        continue
+      try:
+        import pdb; pdb.set_trace()
+        data, meta = hapiplot(data, meta, returnimage=True)
+      except Exception as e:
+        log.error(f"  {server} {dataset['id']}: Error plotting data: {e}")
+        continue
 
 servers_only, datasets_only = cli()
 
 catalogs_all = utilrsw.read(catalogs_all_file)
 
-import pdb; pdb.set_trace()
 if servers_only is not None:
   log.info(f"Generating sample plots for servers: {servers_only}")
 else:
