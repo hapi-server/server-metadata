@@ -8,74 +8,80 @@ log = utilrsw.logger(**logger_kwargs)
 # Reads and write to servers subdir, which is
 # https://github.com/hapi-server/servers
 fname_in   = 'servers/abouts.json'
-fname_out  = 'data/abouts.json'
-fname_all1 = 'servers/all_.updated.txt'
-fname_all2 = 'servers/all.updated.txt'
+fname_out  = 'servers/abouts.json'
+fname_all1 = 'servers/all_.txt'
+fname_all2 = 'servers/all.txt'
 
-def equivalent_dicts(servers, about):
+def equivalent_dicts(about_old, about_new):
   diff = False
-  for k1, v1 in servers.items():
-    if k1.startswith("x_"):
+
+  for key_old, _ in about_old.items():
+    if key_old.startswith("x_"):
       continue
-    if k1 not in about:
-      log.info(f"  key '{k1}' not in /about response")
-      #diff = True
+    if key_old not in about_new:
+      log.info(f"  key '{key_old}' in {fname_in} not in /about response. Using {fname_in} key/value.")
+
   log.info("  ---")
-  for k2, v2 in about.items():
-    if k2.startswith("x_"):
+
+  for key_new, val_new in about_new.items():
+    if key_new.startswith("x_"):
       continue
-    if k2 not in servers:
-      log.info(f"  key '{k2}' not in /about response")
+    if key_new not in about_old:
+      log.info(f"  key '{key_new}' in /about response not in {fname_in}. Adding key/value to {fname_in}.")
       diff = True
-    if not diff and servers[k2] != v2:
-      log.info(f"  servers[{k2}] != about[{k2}]")
+    if not diff and val_new != about[key_new]:
+      log.info(f"  {fname_in}['{key_new}'] = {about[key_new]} != /about['{key_new}'] = '{about_new[key_new]}'. Replacing {fname_in} value.")
       diff = True
   return diff
 
-servers = utilrsw.read(fname_in)
+log.info(f"Reading {fname_in}")
+abouts = utilrsw.read(fname_in)
 
 changed = False
-all_file_str1 = ""
-all_file_str2 = ""
-for idx in range(len(servers['servers'])):
-  server = servers['servers'][idx]
+for idx, about in enumerate(abouts):
+
+  log.info("")
+
   try:
-    about = get(server['url'] + '/about', log=log)
+    about_new = get(about['x_url'] + '/about', log=log)
   except Exception as e:
-    server['x_LastUpdateAttempt'] = utilrsw.utc_now()
-    server['x_LastUpdateError'] = str(type(e)) + " " + str(e)
+    about['x_LastUpdateAttempt'] = utilrsw.utc_now()
+    about['x_LastUpdateError'] = str(type(e)) + " " + str(e)
     continue
 
-  server['x_LastUpdate'] = utilrsw.utc_now()
+  code = utilrsw.get_path(about_new, ["status", "code"])
+  if code is not None and int(code) != 1200:
+    log.info(f"  {about['x_url']}/about returned status {about_new['status']}. Ignoring response and not updating {fname_in}.")
+    continue
 
-  if 'status' in about:
-    del about["status"]
+  about['x_LastUpdate'] = utilrsw.utc_now()
 
-  if not equivalent_dicts(server, about):
-    log.info(f"  No difference between servers.json[{server['id']}] and {server['url']}")
+  if not equivalent_dicts(about, about_new):
+    log.info(f"  No difference between {fname_in}['{about['id']}'] and {about['x_url']}")
   else:
     changed = True
-    log.info(f"  Difference between servers.json[{server['id']}] and {server['url']}/about")
-    server["x_LastUpdateChange"] = utilrsw.utc_now()
-    log.info(f"servers.json[{server['id']}]")
-    log.info(json.dumps(server, indent=2, ensure_ascii=False))
-    log.info(f"{server['url']}/about")
-    log.info(json.dumps(about, indent=2, ensure_ascii=False))
-    servers['servers'][idx] = {**server, **about}
+    about["x_LastUpdateChange"] = utilrsw.utc_now()
+    abouts[idx] = {**about, **about_new}
 
-  all_file_str1 += f"{server['url']}, {server['title']}, {server['id']}, {server['contact']}, {server['contactID']}\n"
-  all_file_str2 += f"{server['url']}\n"
 
 if not changed:
-  log.info("No changes to servers.json. Updating only x_ fields.")
+  log.info(f"No changes to {fname_in}. Updating only x_ fields.")
 
-utilrsw.write(fname_out, servers)
+log.info(f"Writing {fname_out}")
+utilrsw.write(fname_out, abouts)
 
 if changed:
+  all_file_str1 = ""
+  all_file_str2 = ""
+  for about in abouts:
+    all_file_str1 += f"{about['x_url']}, {about['title']}, {about['id']}, {about['contact']}, {about['contactID']}\n"
+    all_file_str2 += f"{about['x_url']}\n"
+  log.info(f"Writing {fname_all1}")
   utilrsw.write(fname_all1, all_file_str1)
+  log.info(f"Writing {fname_all2}")
   utilrsw.write(fname_all2, all_file_str2)
 else:
-  msg = f"No changes to servers.json. Not writing {fname_all1} or {fname_all2}."
+  msg = f"No changes to {fname_in}. Not writing {fname_all1} or {fname_all2}."
   log.info(msg)
 
 # Remove error log file if empty.

@@ -255,8 +255,8 @@ def html(files, server_dir):
   </head>
   <body>
       Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=TITLE" target="_blank">TITLE</a> HAPI server. 
-      <a href="../TITLE.csv" target="_blank">Time range data</a> | 
-      <a href="../" target="_blank">Plot files</a> |
+      <a href="https://hapi-server.org/meta/availabilities/TITLE/TITLE.csv" target="_blank">Time range data</a> | 
+      <a href="https://hapi-server.org/meta/availabilities/TITLE/" target="_blank">Plot files</a> |
       <a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a>
     SEARCH
     DIVS
