@@ -1,8 +1,8 @@
+import os
 import utilrsw
-from hapimeta import get, logger_kwargs
+from hapimeta import get, logger_kwargs, data_dir
 
 debug        = False
-data_dir     = 'data'
 servers_only = None # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
 timeout      = 60   # Set to small value to force failures.
@@ -13,17 +13,17 @@ if debug:
   max_infos = 1
 
 files = {
-  'servers': 'data/abouts.json',
-  'catalogs': 'data/catalogs.json',
-  'catalogs_all': 'data/catalogs-all.json',
+  'abouts': os.path.join(data_dir, 'abouts.json'),
+  'catalogs': os.path.join(data_dir, 'catalogs.json'),
+  'catalogs_all': os.path.join(data_dir, 'catalogs-all.json')
 }
 
 log = utilrsw.logger(**logger_kwargs)
 
-def get_catalogs(servers, servers_only=None):
+def get_catalogs(abouts, servers_only=None):
 
   catalogs = {}
-  for about in servers['servers']:
+  for about in abouts:
 
     now = utilrsw.utc_now()
     server_id = about['id']
@@ -35,7 +35,7 @@ def get_catalogs(servers, servers_only=None):
 
     log.info(server_id)
     try:
-      catalog = get(f"{about['url']}/catalog", log=log, indent="  ", timeout=timeout)
+      catalog = get(f"{about['x_url']}/catalog", log=log, indent="  ", timeout=timeout)
     except Exception as e:
       log.error(f"  {e}")
       catalog = {
@@ -102,7 +102,7 @@ def get_infos(cid, catalog, max_infos=None):
     id = dataset['id']
     log.info(id)
     try:
-      info = get(f"{catalog['about']['url']}/info?id={id}", timeout=timeout, log=log, indent="  ")
+      info = get(f"{catalog['about']['x_url']}/info?id={id}", timeout=timeout, log=log, indent="  ")
       info['x_LastUpdate'] = utilrsw.utc_now()
     except Exception as e:
       info = {
@@ -152,16 +152,16 @@ def get_infos(cid, catalog, max_infos=None):
     n = n + 1
 
 try:
-  servers = utilrsw.read(files['servers'])
+  abouts = utilrsw.read(files['abouts'])
 except Exception as e:
-  log.error(f"Error reading {files['servers']}: {e}")
+  log.error(f"Error reading {files['abouts']}: {e}")
   exit(1)
 
 log.info(40*"-")
 log.info("Starting /catalog requests.")
 log.info(40*"-")
 
-catalogs = get_catalogs(servers, servers_only=servers_only)
+catalogs = get_catalogs(abouts, servers_only=servers_only)
 
 log.info(40*"-")
 log.info("Finished /catalog requests.")
@@ -216,4 +216,5 @@ for file in ['catalogs_all', 'catalogs']:
     exit(1)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty("catalogs.errors.log")
+f = os.path.join(logger_kwargs['log_dir'], "catalogs.errors.log")
+utilrsw.rm_if_empty(f)

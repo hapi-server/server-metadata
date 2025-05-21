@@ -9,7 +9,7 @@ import utilrsw
 
 from datetime import datetime, timedelta
 from hapiclient import hapitime2datetime
-from hapimeta import logger_kwargs
+from hapimeta import logger_kwargs, data_dir
 
 log = utilrsw.logger(**logger_kwargs)
 
@@ -26,9 +26,8 @@ fig_width  = fig_width/dpi  # inches
 fig_height = 2160           # pixels
 fig_height = fig_height/dpi # inches
 
-out_dir           = 'data' # Output directory
-base_dir          = os.path.join(out_dir, 'availabilities') # Base directory
-catalogs_all_file = f'{out_dir}/catalogs-all.pkl' # Input file
+base_dir          = os.path.join(data_dir, 'availabilities') # Base directory
+catalogs_all_file = f'{data_dir}/catalogs-all.pkl' # Input file
 
 def write(fname, data, logger=None):
   try:
@@ -369,7 +368,7 @@ def process_server(server, catalogs_all):
   write(fname, df)
 
   #log.info(f"Plotting availability for {server}")
-  server_url = catalogs_all['about']['url']
+  server_url = catalogs_all['about']['x_url']
   x_LastUpdate = catalogs_all['x_LastUpdate']
   title = f"{server} | {server_url} | {len(datasets)} datasets | {x_LastUpdate}"
   files = plot(server, server_url, server_dir, title, datasets, starts, stops,
@@ -409,4 +408,5 @@ write(f"{base_dir}/availabilities.pkl", df)
 write(f"{base_dir}/availabilities.csv", df)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty(os.path.join("log", "availabilities.errors.log"))
+f = os.path.join(logger_kwargs['log_dir'], "availabilities.errors.log")
+utilrsw.rm_if_empty(f)

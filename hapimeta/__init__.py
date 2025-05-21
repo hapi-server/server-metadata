@@ -1,4 +1,4 @@
-__all__ = ['version', 'get', 'logger_kwargs']
+__all__ = ['version', 'get', 'logger_kwargs', 'data_dir']
 
 def version():
   import os
@@ -7,6 +7,8 @@ def version():
   return json.load(fname)['version']
 
 __version__ = version()
+
+data_dir = 'data'
 
 logger_kwargs = {
   "log_dir": "log",

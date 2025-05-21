@@ -1,3 +1,4 @@
+# Execute from ../;
 if [ ! -d "servers" ]; then
   git clone https://github.com/hapi-server/servers
 else
@@ -5,8 +6,8 @@ else
 fi
 pip install -e .
 
-python about.py
-git -C servers commit -a -m "Update servers.json, ... [skip ci]"
+python abouts.py
+git -C servers commit -a -m "Update abouts.json, all.txt, all_.txt [skip ci]"
 git  -C servers push
 
 python catalogs.py

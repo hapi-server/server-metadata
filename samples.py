@@ -2,32 +2,21 @@
 #   python samples.py --server [server_id1,server_id2,...] --dataset dataset_id
 #   prefix server id or dataset id with ^ to trigger regex match.
 
+import os
 import datetime
 
 import utilrsw
 
 import hapiclient
 
-from hapimeta import logger_kwargs
+from hapimeta import logger_kwargs, data_dir
 from hapiplot import hapiplot
 
 log = utilrsw.logger(**logger_kwargs)
 
-# Number of servers to process in parallel (> 1 not working b/c
-# matplotlib not used in thread-safe manner)
-max_workers    = 1
-lines_per_plot = 50     # Number of time range bars per plot
-# File formats to save. 'png' and 'svg' are supported.
-savefig_fmts = ['svg', 'png']
-
-dpi        = 300
-fig_width  = 3840           # pixels
-fig_width  = fig_width/dpi  # inches
-fig_height = 2160           # pixels
-fig_height = fig_height/dpi # inches
-
-out_dir           = 'data/availability'     # Output directory
-catalogs_all_file = 'data/catalogs-all.pkl' # Input file
+savefig_fmts      = ['svg', 'png']
+out_dir           = os.path.join(data_dir, 'availability')
+catalogs_all_file = os.path.join(data_dir, 'catalogs-all.pkl')
 
 def cli():
   clkws = {
@@ -162,4 +151,4 @@ for server in servers:
   process_server(catalogs_all[server], server, datasets_only)
 
 # Remove error log file if empty.
-utilrsw.rm_if_empty("log/samples.errors.log")
+utilrsw.rm_if_empty(os.path.join("log", "samples.errors.log"))
