@@ -1,4 +1,5 @@
 # Execute from ../;
+git config pull.rebase true
 if [ ! -d "servers" ]; then
   git clone https://github.com/hapi-server/servers
 else
