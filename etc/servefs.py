@@ -8,15 +8,12 @@ from typing import Union
 from fastapi import HTTPException
 from fastapi.responses import HTMLResponse
 
-try:
-  with open("data/availabilities/availabilities.pkl", "rb") as file:
-    DATAFRAME = pickle.load(file)
-except FileNotFoundError:
-  raise HTTPException(status_code=500, detail="Data file not found")
-
 app = utilrsw.servefs(root="data")
 
 if False:
+  with open("data/availabilities/availabilities.pkl", "rb") as file:
+    DATAFRAME = pickle.load(file)
+
   @app.get("/", response_class=HTMLResponse)
   async def query(server: Union[str, None] = None, start: Union[str, None] = None, stop: Union[str, None] = None, format: str = "csv"):
     """Query data based on server, start, stop, and format."""
