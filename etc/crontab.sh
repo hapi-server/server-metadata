@@ -1,10 +1,11 @@
 # Execute from ../;
-git config pull.rebase true
+
 if [ ! -d "servers" ]; then
   git clone https://github.com/hapi-server/servers
 else
-  git -C servers pull
+  git -C servers pull --rebase
 fi
+
 pip install -e .
 
 python abouts.py
