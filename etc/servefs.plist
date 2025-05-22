@@ -9,13 +9,13 @@
                 <string>/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         </dict>
 	<key>WorkingDirectory</key>
-	<string>/Users/weigel/git/hapi/server-metadata</string>
+	<string>/Users/weigel/git/hapi/server-metadata/etc</string>
 	<key>UserName</key>
 	<string>weigel</string>
         <key>ProgramArguments</key>
         <array>
 	  <string>/bin/zsh</string>
-          <string>etc/servefs.sh</string>
+          <string>servefs.sh</string>
         </array>
         <key>RunAtLoad</key>
         <true/>

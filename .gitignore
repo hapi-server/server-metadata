@@ -6,3 +6,5 @@ data/
 servers/
 *.log
 *~
+etc/servefs.stderr
+etc/servefs.stdout
