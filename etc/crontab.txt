@@ -1,1 +1,1 @@
-22 3 * * * cd ~/git/hapi/server-metadata/; /bin/zsh etc/crontab.sh
+22 3 * * * cd ~/git/hapi/server-metadata/; /bin/zsh -i etc/crontab.sh
