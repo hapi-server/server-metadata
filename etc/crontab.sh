@@ -13,8 +13,8 @@ python --version
 pip install -e . $TEE
 
 python abouts.py
-#git -C servers commit -a -m "Update abouts.json, all.txt, all_.txt [skip ci]" >> $TEE
-#git  -C servers push $TEE
+git -C servers commit -a -m "Update abouts.json, all.txt, all_.txt [skip ci]" >> $TEE
+git  -C servers push $TEE
 
-#python catalogs.py
-#python availabilities.py
+python catalogs.py
+python availabilities.py
