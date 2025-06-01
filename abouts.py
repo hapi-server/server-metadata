@@ -72,7 +72,7 @@ utilrsw.write(fname_abt1, abouts)
 log.info(f"Writing {fname_abt2}")
 utilrsw.write(fname_abt2, abouts)
 
-if changed:
+if True:
   all_file_str1 = ""
   all_file_str2 = ""
   for about in abouts:

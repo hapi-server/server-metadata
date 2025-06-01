@@ -2,15 +2,15 @@ import os
 import utilrsw
 from hapimeta import get, logger_kwargs, data_dir
 
-debug        = False
+debug        = True
 servers_only = None # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
 timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
-  servers_only = None
-  max_infos = 1
+  servers_only = ["SuperMAG"]
+  #max_infos = 1
 
 files = {
   'abouts': os.path.join(data_dir, 'abouts.json'),
