@@ -201,6 +201,7 @@ for file in ['catalogs_all', 'catalogs']:
       for dataset in catalogs[server]['catalog']:
         if 'info' in dataset:
           del dataset['info']
+          del dataset['about']
 
   try:
     utilrsw.write(files[file], catalogs, logger=log)
