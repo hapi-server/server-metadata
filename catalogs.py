@@ -2,7 +2,7 @@ import os
 import utilrsw
 from hapimeta import get, logger_kwargs, data_dir
 
-debug        = True
+debug        = False
 servers_only = None # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
 timeout      = 60   # Set to small value to force failures.
