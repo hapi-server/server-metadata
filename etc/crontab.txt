@@ -1,1 +1,2 @@
+# Note - put this in admin/mini, which has other crontab commands
 22 3 * * * cd ~/git/hapi/server-metadata/; /bin/zsh -i etc/crontab.sh
