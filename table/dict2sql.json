@@ -1,0 +1,30 @@
+{
+  "dataset": {
+    "name": "hapi.all.datasets",
+    "out_dir": "data/table",
+    "use_all_attributes": true,
+    "path_type": "list",
+    "omit_attributes": [
+      "x_customRequestOptions",
+      "parameters"
+    ],
+    "paths": {
+      "/": {
+        "server": null,
+        "id": null
+      }
+    }
+  },
+  "parameter": {
+    "name": "hapi.all.parameters",
+    "out_dir": "data/table",
+    "use_all_attributes": true,
+    "paths": {
+      "/": {
+        "server": null,
+        "id": null,
+        "name": null
+      }
+    }
+  }
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "path": "datasets",
+    "sqldb": "../data/table/hapi.all.datasets.sql",
+    "dataTablesAdditions": {
+      "defaultQueryString": "_cols_show=nonempty",
+      "tableMetadata": {
+        "tableTitle": "HAPI Datasets",
+        "description+": "<a href=\"https://github.com/data-specification/server-metadata\" target=\"_blank\">Table generation code</a>"
+      },
+      "columnDropdowns": true,
+      "columnOptions": [
+        {"name": "server", "render": "renderDatasetID", "width": "5em"},
+        {"name": "resourceURL", "render": "trimURL"},
+        {"name": "NumParameters", "render": "renderDatasetID", "width": "4em"}
+      ]
+    }
+  },
+  {
+    "path": "parameters",
+    "sqldb": "../data/table/hapi.all.parameters.sql",
+    "dataTablesAdditions": {
+      "fixedColumns": 2,
+      "defaultQueryString": "_cols_show=nonempty",
+      "tableMetadata": {
+        "tableTitle": "HAPI Parameters",
+        "description+": "<a href=\"https://github.com/data-specification/server-metadata\" target=\"_blank\">Table generation code</a>"
+      },
+      "columnDropdowns": true,
+      "columnOptions": [
+        {"name": "server", "render": "renderDatasetID", "width": "5em"},
+        {"name": "length", "render": "renderDatasetID", "width": "3em"},
+        {"name": "type", "render": "renderDatasetID", "width": "5em"},
+        {"name": "size", "render": "renderDatasetID", "width": "3em"}
+      ]
+    }
+  }
+]

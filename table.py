@@ -12,13 +12,31 @@ def reorder_keys(d):
     newd[k] = v
   return newd
 
+def format_bins(bins):
+  def ellipsis(arr):
+    if len(arr) > 5:
+      return arr[0:2] + ['...'] + arr[-2:]
+    return arr
+  bins_new = {}
+  for idx, bin in enumerate(bins):
+    for key in bin:
+      key_new = f"bin[{idx}]/{key}"
+      if isinstance(bin[key], list):
+        bins_new[key_new] = ellipsis(bin[key])
+      else:
+        bins_new[key_new] = bin[key]
+  return bins_new
+
 def compute_rows(all_file, omits=[]):
   servers = utilrsw.read(all_file)
   rows = {'dataset': [], 'parameter': []}
   for server in servers:
+    if server != 'CDAWeb':
+      continue
     catalog = servers[server]['catalog']
-    for i, dataset in enumerate(catalog):
+    for dataset in catalog:
       dataset['server'] = server
+
       for omit in omits:
         utilrsw.rm_path(dataset, omit, ignore_error=True)
         utilrsw.rm_path(dataset, omit, ignore_error=True)
@@ -27,44 +45,20 @@ def compute_rows(all_file, omits=[]):
         dataset['NumParameters'] = len(dataset['info']['parameters'])
         for parameter in dataset['info']['parameters']:
           parameter = {"server": server, "id": dataset['id'], **parameter}
+          if 'bins' in parameter:
+            parameter['bins'] = format_bins(parameter['bins'])
           row = utilrsw.flatten_dicts(parameter, simplify=True)
           rows['parameter'].append(reorder_keys(row))
 
       row = utilrsw.flatten_dicts(dataset, simplify=True)
       rows['dataset'].append(reorder_keys(row))
+
   return rows
 
-config = {
-  "dataset": {
-    "name": 'hapi.all.datasets',
-    "out_dir": 'data/table',
-    "use_all_attributes": True,
-    "path_type": "list",
-    "omit_attributes": [
-      "x_customRequestOptions",
-      "parameters"
-    ],
-    "paths": {
-      "/": {
-        "server": None,
-        "id": None
-      }
-    }
-  },
-  "parameter": {
-    "name": 'hapi.all.parameters',
-    "out_dir": 'data/table',
-    "use_all_attributes": True,
-    "paths": {
-      "/": {
-        "server": None,
-        "id": None,
-        "name": None
-      }
-    }
-  }
-}
+config = utilrsw.read('table/dict2sql.json')
 omits = [['info', 'HAPI'], ['info', 'status']]
 rows = compute_rows('data/catalogs-all.pkl', omits=omits)
 tableui.dict2sql(rows['dataset'], config['dataset'])
 tableui.dict2sql(rows['parameter'], config['parameter'])
+
+tableui.serve(config='table/tableui.json', port=6001)
