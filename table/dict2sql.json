@@ -11,7 +11,16 @@
     "paths": {
       "/": {
         "server": null,
-        "id": null
+        "id": null,
+        "title": null,
+        "description": null,
+        "cadence": null,
+        "timeStampLocation": null,
+        "startDate": null,
+        "stopDate": null,
+        "sampleStartDate": null,
+        "sampleStopDate": null,
+        "resourceID": null
       }
     }
   },

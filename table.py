@@ -1,5 +1,8 @@
+import logging
+
 import utilrsw
 import tableui
+
 
 def reorder_keys(d):
   # move keys starting with 'x_' to the end, preserving relative order
@@ -20,29 +23,38 @@ def format_bins(bins):
   bins_new = {}
   for idx, bin in enumerate(bins):
     for key in bin:
-      key_new = f"bin[{idx}]/{key}"
+      key_new = f"bins[{idx}]/{key}"
       if isinstance(bin[key], list):
         bins_new[key_new] = ellipsis(bin[key])
       else:
         bins_new[key_new] = bin[key]
   return bins_new
 
-def compute_rows(all_file, omits=[]):
+def compute_rows(all_file, servers=None, omits=[]):
+  servers_keep = servers
   servers = utilrsw.read(all_file)
-  rows = {'dataset': [], 'parameter': []}
+
+  rows = {
+    'dataset': [],
+    'parameter': []
+  }
+
   for server in servers:
-    if server != 'CDAWeb':
+    if servers_keep is not None and server not in servers_keep:
       continue
+
     catalog = servers[server]['catalog']
     for dataset in catalog:
       dataset['server'] = server
 
-      for omit in omits:
-        utilrsw.rm_path(dataset, omit, ignore_error=True)
-        utilrsw.rm_path(dataset, omit, ignore_error=True)
+      utilrsw.rm_paths(dataset, omits, sep='/', ignore_error=True)
+
+      if utilrsw.get_path(dataset, ['info', 'additionalMetadata']) is not None:
+        if isinstance(dataset['info']['additionalMetadata'], dict):
+          continue
 
       if utilrsw.get_path(dataset, ['info', 'parameters']) is not None:
-        dataset['NumParameters'] = len(dataset['info']['parameters'])
+        dataset['x_nParams'] = len(dataset['info']['parameters'])
         for parameter in dataset['info']['parameters']:
           parameter = {"server": server, "id": dataset['id'], **parameter}
           if 'bins' in parameter:
@@ -55,9 +67,18 @@ def compute_rows(all_file, omits=[]):
 
   return rows
 
+file = 'data/catalogs-all.pkl'
+omits = ['info/HAPI', 'info/status', 'info/definitions', 'info/x_LastUpdate']
+servers = None # All servers
+#servers = ['CSA']
+
+rows = compute_rows(file, omits=omits, servers=servers)
+
+import logging
+logger = logging.getLogger('dict2sql')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+
 config = utilrsw.read('table/dict2sql.json')
-omits = [['info', 'HAPI'], ['info', 'status']]
-rows = compute_rows('data/catalogs-all.pkl', omits=omits)
 tableui.dict2sql(rows['dataset'], config['dataset'])
 tableui.dict2sql(rows['parameter'], config['parameter'])
 

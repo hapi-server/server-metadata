@@ -1,0 +1,20 @@
+a.renderLink {
+  color: black;
+  text-decoration-color: black;
+}
+
+:root {
+	--data-new-tab-url: url(https://hapi-server.org/servers/css/images/open_in_new_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg);
+}
+
+.open-in-new-tab {
+	background-image: var(--data-new-tab-url);
+	background-repeat: no-repeat;
+	background-size: 1em;
+	background-position: center;
+	display: inline-block;
+	width: 1em;
+	height: 1em;
+  margin-left: 0.2em;
+  vertical-align: middle;
+}

@@ -3,6 +3,8 @@
     "path": "datasets",
     "sqldb": "../data/table/hapi.all.datasets.sql",
     "dataTablesAdditions": {
+      "renderFunctions": "render.js",
+      "style": "style.css",
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
         "tableTitle": "HAPI Datasets",
@@ -10,9 +12,13 @@
       },
       "columnDropdowns": true,
       "columnOptions": [
-        {"name": "server", "render": "renderDatasetID", "width": "5em"},
+        {"name": "server", "render": "renderServer", "width": "5em"},
+        {"name": "id", "render": "renderID"},
+        {"name": "title", "render": {"function": "ellipsis", "args": [50]}},
+        {"name": "description", "render": {"function": "ellipsis", "args": [50]}},
         {"name": "resourceURL", "render": "trimURL"},
-        {"name": "NumParameters", "render": "renderDatasetID", "width": "4em"}
+        {"name": "citation", "render": "trimURL"},
+        {"name": "x_nParams", "width": "4em"}
       ]
     }
   },
@@ -20,6 +26,8 @@
     "path": "parameters",
     "sqldb": "../data/table/hapi.all.parameters.sql",
     "dataTablesAdditions": {
+      "style": "style.css",
+      "renderFunctions": "render.js",
       "fixedColumns": 2,
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
@@ -28,10 +36,18 @@
       },
       "columnDropdowns": true,
       "columnOptions": [
-        {"name": "server", "render": "renderDatasetID", "width": "5em"},
-        {"name": "length", "render": "renderDatasetID", "width": "3em"},
-        {"name": "type", "render": "renderDatasetID", "width": "5em"},
-        {"name": "size", "render": "renderDatasetID", "width": "3em"}
+        {"name": "server", "render": "renderServer", "width": "5em"},
+        {"name": "id", "render": "renderID"},
+        {"name": "name", "render": "renderName"},
+        {"name": "length", "width": "3em"},
+        {"name": "type", "width": "5em"},
+        {"name": "size", "width": "3em"},
+        {"name": "bins[0]/ranges", "render": "renderBins"},
+        {"name": "bins[0]/centers", "render": "renderBins"},
+        {"name": "bins[1]/ranges", "render": "renderBins"},
+        {"name": "bins[1]/centers", "render": "renderBins"},
+        {"name": "bins[2]/ranges", "render": "renderBins"},
+        {"name": "bins[2]/centers", "render": "renderBins"}
       ]
     }
   }
