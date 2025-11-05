@@ -11,7 +11,7 @@
     "paths": {
       "/": {
         "server": null,
-        "id": null,
+        "dataset": null,
         "title": null,
         "description": null,
         "cadence": null,
@@ -31,8 +31,8 @@
     "paths": {
       "/": {
         "server": null,
-        "id": null,
-        "name": null
+        "dataset": null,
+        "parameter": null
       }
     }
   }

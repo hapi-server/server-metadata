@@ -46,6 +46,8 @@ def compute_rows(all_file, servers=None, omits=[]):
     catalog = servers[server]['catalog']
     for dataset in catalog:
       dataset['server'] = server
+      dataset['dataset'] = dataset['id']
+      del dataset['id']
 
       utilrsw.rm_paths(dataset, omits, sep='/', ignore_error=True)
 
@@ -56,7 +58,9 @@ def compute_rows(all_file, servers=None, omits=[]):
       if utilrsw.get_path(dataset, ['info', 'parameters']) is not None:
         dataset['x_nParams'] = len(dataset['info']['parameters'])
         for parameter in dataset['info']['parameters']:
-          parameter = {"server": server, "id": dataset['id'], **parameter}
+          parameter['parameter'] = parameter['name']
+          del parameter['name']
+          parameter = {"server": server, "dataset": dataset['dataset'], **parameter}
           if 'bins' in parameter:
             parameter['bins'] = format_bins(parameter['bins'])
           row = utilrsw.flatten_dicts(parameter, simplify=True)

@@ -7,15 +7,16 @@
       "style": "style.css",
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
-        "tableTitle": "HAPI Datasets",
+        "tableTitle": "Datasets",
         "description+": "<a href=\"https://github.com/data-specification/server-metadata\" target=\"_blank\">Table generation code</a>"
       },
       "columnDropdowns": true,
+      "columnRender": "renderAll",
       "columnOptions": [
-        {"name": "server", "render": "renderServer", "width": "5em"},
-        {"name": "id", "render": "renderID"},
-        {"name": "title", "render": {"function": "ellipsis", "args": [50]}},
-        {"name": "description", "render": {"function": "ellipsis", "args": [50]}},
+        {"name": "server", "width": "5em"},
+        {"name": "dataset"},
+        {"name": "title"},
+        {"name": "description"},
         {"name": "resourceURL", "render": "trimURL"},
         {"name": "citation", "render": "trimURL"},
         {"name": "x_nParams", "width": "4em"}
@@ -31,14 +32,15 @@
       "fixedColumns": 2,
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
-        "tableTitle": "HAPI Parameters",
+        "tableTitle": "Parameters",
         "description+": "<a href=\"https://github.com/data-specification/server-metadata\" target=\"_blank\">Table generation code</a>"
       },
       "columnDropdowns": true,
+      "columnRender": "renderAll",
       "columnOptions": [
-        {"name": "server", "render": "renderServer", "width": "5em"},
-        {"name": "id", "render": "renderID"},
-        {"name": "name", "render": "renderName"},
+        {"name": "server", "width": "5em"},
+        {"name": "dataset"},
+        {"name": "parameter"},
         {"name": "length", "width": "3em"},
         {"name": "type", "width": "5em"},
         {"name": "size", "width": "3em"},
