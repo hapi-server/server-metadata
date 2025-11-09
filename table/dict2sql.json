@@ -14,10 +14,10 @@
         "dataset": null,
         "title": null,
         "description": null,
-        "cadence": null,
-        "timeStampLocation": null,
         "startDate": null,
         "stopDate": null,
+        "cadence": null,
+        "timeStampLocation": null,
         "sampleStartDate": null,
         "sampleStopDate": null,
         "resourceID": null
@@ -32,7 +32,13 @@
       "/": {
         "server": null,
         "dataset": null,
-        "parameter": null
+        "parameter": null,
+        "startDate": null,
+        "stopDate": null,
+        "cadence": null,
+        "type": null,
+        "units": null,
+        "length": null
       }
     }
   }

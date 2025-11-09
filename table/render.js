@@ -36,8 +36,8 @@ function searchLink (columnName, columnString, constraint) {
   const link = `<a href="${url}" ${attrs}>${constraintIcon}</a>`
   return link
 }
-function combineLinks (columnString, links) {
-  return `${columnString}&hairsp;<nobr>${links.join('')}</nobr>`
+function combineLinks (columnString, links, split) {
+  return `${columnString}${split}<span class="searchConstraints"><nobr>${links.join('')}</nobr></span>`
 }
 
 renderFunctions.renderAll = function (columnName, config) {
@@ -45,11 +45,14 @@ renderFunctions.renderAll = function (columnName, config) {
     if (type !== 'display') {
       return columnString
     }
+    const constrainedSearch = columnName.endsWith('Date') ||
+                              columnName === 'x_nParams' ||
+                              columnName === 'length'
     const links = []
+    let split = ''
     if (columnName === 'server') {
       const q = { server: columnString }
       links.push(viewLink(q, columnString))
-      links.push(searchLink(columnName, columnString))
     } else if (columnName === 'dataset') {
       const columnNames = config.dataTables.columns.map(c => c.name)
       const q = {
@@ -57,7 +60,6 @@ renderFunctions.renderAll = function (columnName, config) {
         dataset: row[columnNames.indexOf('dataset')]
       }
       links.push(viewLink(q, columnString))
-      links.push(searchLink(columnName, columnString))
     } else if (columnName === 'parameter') {
       const columnNames = config.dataTables.columns.map(c => c.name)
       const q = {
@@ -66,30 +68,29 @@ renderFunctions.renderAll = function (columnName, config) {
         parameters: row[columnNames.indexOf('parameter')]
       }
       links.push(viewLink(q, columnString))
-      links.push(searchLink(columnName, columnString))
-    } else if (columnName === 'title') {
-      const columnStringOriginal = columnString
-      columnString = renderFunctions.ellipsis(columnName, config, 30)(columnString, type, row, meta)
-      links.push(searchLink(columnName, columnStringOriginal))
-    } else if (columnName === 'description') {
-      const columnStringOriginal = columnString
-      columnString = renderFunctions.ellipsis(columnName, config, 50)(columnString, type, row, meta)
-      links.push(searchLink(columnName, columnStringOriginal))
-    } else if (columnName.endsWith('Date')) {
-      links.push(searchLink(columnName, columnString, '='))
-      links.push('&hairsp;' + searchLink(columnName, columnString, '>'))
-      links.push('&hairsp;' + searchLink(columnName, columnString, '≥'))
-      links.push('&hairsp;' + searchLink(columnName, columnString, '<'))
-      links.push('&hairsp;' + searchLink(columnName, columnString, '≤'))
-    } else {
-      links.push(searchLink(columnName, columnString))
+    } else if (constrainedSearch) {
+      split = '<br>'
+      if (columnString !== '') {
+        links.push(searchLink(columnName, columnString, '='))
+        links.push('&hairsp;' + searchLink(columnName, columnString, '>'))
+        links.push('&hairsp;' + searchLink(columnName, columnString, '≥'))
+        links.push('&hairsp;' + searchLink(columnName, columnString, '<'))
+        links.push('&hairsp;' + searchLink(columnName, columnString, '≤'))
+      }
+    }
+    if (columnString.startsWith('spase')) {
+      const url = columnString.replace('spase://', 'http://spase-metadata.org/')
+      let shortID = columnString.split('/')
+      shortID = shortID[shortID.length - 1]
+      columnString = `<a href="${url}" title="${url}" target="_blank">${shortID}</a>`
     }
     if (links.length > 0) {
-      columnString = combineLinks(columnString, links)
+      columnString = combineLinks(columnString, links, split)
     }
     return columnString
   }
 }
+
 renderFunctions.renderBins = function (columnName, config) {
   return (columnString, type, row, meta) => {
     if (type !== 'display') {
@@ -98,7 +99,8 @@ renderFunctions.renderBins = function (columnName, config) {
     const binsSplit =
     columnString
       .replaceAll('], [', '],<br>&nbsp;[')
-      .replace(", '...', ", ",<br>&nbsp;&hellip;<br>&nbsp;")
-    return `<div style="text-align:left">${binsSplit}</div>`
+      .replace(", '...', ", ',<br>&nbsp;&hellip;<br>&nbsp;')
+    const style = 'margin: auto; width:80%;text-align:left'
+    return `<div style="${style}">${binsSplit}</div>`
   }
 }

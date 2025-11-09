@@ -5,6 +5,7 @@
     "dataTablesAdditions": {
       "renderFunctions": "render.js",
       "style": "style.css",
+      "fixedColumns": 2,
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
         "tableTitle": "Datasets",
@@ -15,11 +16,15 @@
       "columnOptions": [
         {"name": "server", "width": "5em"},
         {"name": "dataset"},
-        {"name": "title"},
-        {"name": "description"},
+        {"name": "title", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "contact", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "description", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "cadence", "width": "6em"},
         {"name": "resourceURL", "render": "trimURL"},
         {"name": "citation", "render": "trimURL"},
-        {"name": "x_nParams", "width": "4em"}
+        {"name": "datasetCitation", "render": "trimURL"},
+        {"name": "additionalMetadata", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "x_nParams", "width": "4em", "type": "integer"}
       ]
     }
   },
@@ -29,7 +34,7 @@
     "dataTablesAdditions": {
       "style": "style.css",
       "renderFunctions": "render.js",
-      "fixedColumns": 2,
+      "fixedColumns": 3,
       "defaultQueryString": "_cols_show=nonempty",
       "tableMetadata": {
         "tableTitle": "Parameters",
@@ -42,12 +47,22 @@
         {"name": "dataset"},
         {"name": "parameter"},
         {"name": "length", "width": "3em"},
-        {"name": "type", "width": "5em"},
+        {"name": "type", "width": "3em"},
         {"name": "size", "width": "3em"},
+        {"name": "cadence", "width": "4em"},
+        {"name": "description", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "units", "width": "5em"},
+        {"name": "fill", "width": "6em"},
+        {"name": "fillValue", "width": "6em"},
+        {"name": "resourceURL", "render": "trimURL"},
+        {"name": "calibrationURL", "render": "trimURL"},
+        {"name": "bins[0]/units", "width": "5em"},
         {"name": "bins[0]/ranges", "render": "renderBins"},
         {"name": "bins[0]/centers", "render": "renderBins"},
+        {"name": "bins[1]/units", "width": "5em"},
         {"name": "bins[1]/ranges", "render": "renderBins"},
         {"name": "bins[1]/centers", "render": "renderBins"},
+        {"name": "bins[2]/units", "width": "5em"},
         {"name": "bins[2]/ranges", "render": "renderBins"},
         {"name": "bins[2]/centers", "render": "renderBins"}
       ]

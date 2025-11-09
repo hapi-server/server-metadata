@@ -60,7 +60,16 @@ def compute_rows(all_file, servers=None, omits=[]):
         for parameter in dataset['info']['parameters']:
           parameter['parameter'] = parameter['name']
           del parameter['name']
-          parameter = {"server": server, "dataset": dataset['dataset'], **parameter}
+          if 'units' in parameter and parameter['units'] is None:
+            parameter['units'] = ''
+          parameter = {
+            "server": server,
+            "dataset": dataset['dataset'],
+            "startDate": utilrsw.get_path(dataset, 'info.startDate', ''),
+            "stopDate": utilrsw.get_path(dataset, 'info.stopDate', ''),
+            "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
+            **parameter
+          }
           if 'bins' in parameter:
             parameter['bins'] = format_bins(parameter['bins'])
           row = utilrsw.flatten_dicts(parameter, simplify=True)
