@@ -3,6 +3,7 @@ import logging
 import utilrsw
 import tableui
 
+logger = utilrsw.logger('table', log_dir='log')
 
 def reorder_keys(d):
   # move keys starting with 'x_' to the end, preserving relative order
@@ -87,12 +88,9 @@ servers = None # All servers
 
 rows = compute_rows(file, omits=omits, servers=servers)
 
-import logging
-logger = logging.getLogger('dict2sql')
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s: %(message)s')
-
 config = utilrsw.read('table/dict2sql.json')
-tableui.dict2sql(rows['dataset'], config['dataset'])
-tableui.dict2sql(rows['parameter'], config['parameter'])
+tableui.dict2sql(rows['dataset'], config['dataset'], logger=logger)
+tableui.dict2sql(rows['parameter'], config['parameter'], logger=logger)
 
-tableui.serve(config='table/tableui.json', port=6001)
+print('Serve using\n python etc/serve-table.py table/tableui.json --port 6002')
+#tableui.serve(config='table/tableui.json', port=6001)

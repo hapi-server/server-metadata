@@ -18,3 +18,4 @@ git  -C servers push
 
 python catalogs.py
 python availabilities.py
+python table.py

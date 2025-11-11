@@ -15,7 +15,7 @@
         <key>ProgramArguments</key>
         <array>
 	  <string>/bin/zsh</string>
-          <string>servefs.sh</string>
+          <string>serve-table.sh</string>
         </array>
         <key>RunAtLoad</key>
         <true/>
