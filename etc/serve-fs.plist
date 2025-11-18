@@ -2,10 +2,10 @@
 <plist version="1.0">
     <dict>
         <key>Label</key>
-        <string>servefs</string>
+        <string>serve-fs</string>
         <key>EnvironmentVariables</key>
         <dict>
-		<key>PATH</key>
+                <key>PATH</key>
                 <string>/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         </dict>
 	<key>WorkingDirectory</key>
