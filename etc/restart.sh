@@ -1,2 +1,2 @@
-sudo launchctl stop serve-table.plist
-sudo launchctl start serve-table.plist
+sudo launchctl stop $1
+sudo launchctl start $1
