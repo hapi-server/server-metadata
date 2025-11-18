@@ -2,10 +2,10 @@
 <plist version="1.0">
     <dict>
         <key>Label</key>
-        <string>servefs</string>
+        <string>serve-fs</string>
         <key>EnvironmentVariables</key>
         <dict>
-		<key>PATH</key>
+                <key>PATH</key>
                 <string>/usr/local/bin:/usr/local/sbin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         </dict>
 	<key>WorkingDirectory</key>
@@ -22,8 +22,8 @@
         <key>KeepAlive</key>
         <true/>
 	<key>StandardErrorPath</key>
-        <string>/Users/weigel/git/hapi/server-metadata/etc/servefs.stderr</string>
+        <string>/Users/weigel/git/hapi/server-metadata/etc/log/serve-fs/stderr</string>
         <key>StandardOutPath</key>
-        <string>/Users/weigel/git/hapi/server-metadata/etc/servefs.stdout</string>
+        <string>/Users/weigel/git/hapi/server-metadata/etc/log/serve-fs/stdout</string>
     </dict>
 </plist>
