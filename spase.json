@@ -1,0 +1,50 @@
+{
+  "Spase": {
+    "SchemaURL": "http://www.spase-group.org/data/schema",
+    "Version": "2.7.0"
+  },
+  "AccessInformation": [
+    {
+      "RepositoryID": "spase://SMWG/Repository/?",
+      "Availability": "Online",
+      "AccessRights": "Open",
+      "Format": ["CSV", "Binary", "JSON"],
+      "Encoding": ["ASCII", "None"],
+      "Acknowledgement": "",
+      "AccessURL": {
+        "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
+        "Style": "HAPI",
+        "ProductKey": null,
+        "Description": "Web Service to this data using the HAPI interface."
+      }
+    },
+    {
+      "RepositoryID": "spase://SMWG/Repository/?",
+      "Availability": "Online",
+      "AccessRights": "Open",
+      "Encoding": "ASCII",
+      "Acknowledgement": "",
+      "AccessURL": {
+        "Name": "CDAWeb HAPI Script in Multiple Languages",
+        "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}&return=script",
+        "Style": "HAPI",
+        "ProductKey": null,
+        "Description": "Web Service user interface that generates scripts in {languages} to access this dataset. See https://hapi-server.org/servers/api for the script generation API."
+      }
+    }
+  ],
+  "hapi2spase": {
+    "dataset": {
+      "id": "ProviderResourceName",
+      "info/cadence": "TemporalDescription/Cadence",
+      "info/startDate": "TemporalDescription/TimeSpan/StartDate",
+      "info/stopDate": "TemporalDescription/TimeSpan/StopDate"
+    },
+    "parameter": {
+      "name": "ParameterKey",
+      "description": "Description",
+      "units": "Units",
+      "fill": "FillValue"
+    }
+  }
+}
