@@ -45,7 +45,7 @@ for idx, about in enumerate(abouts):
   try:
     about_new = get(about['x_url'] + '/about', log=log)
   except Exception as e:
-    about['x_LastUpdateAttempt'] = utilrsw.utc_now()
+    about['x_LastUpdateAttempt'] = utilrsw.time.utc_now()
     about['x_LastUpdateError'] = str(type(e)) + " " + str(e)
     continue
 
@@ -54,13 +54,13 @@ for idx, about in enumerate(abouts):
     log.info(f"  {about['x_url']}/about returned status {about_new['status']}. Ignoring response and not updating {fname_abt1}.")
     continue
 
-  about['x_LastUpdate'] = utilrsw.utc_now()
+  about['x_LastUpdate'] = utilrsw.time.utc_now()
 
   if not equivalent_dicts(about, about_new):
     log.info(f"  No difference between {fname_abt1}['{about['id']}'] and {about['x_url']}")
   else:
     changed = True
-    about["x_LastUpdateChange"] = utilrsw.utc_now()
+    about["x_LastUpdateChange"] = utilrsw.time.utc_now()
     abouts[idx] = {**about, **about_new}
 
 

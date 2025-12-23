@@ -103,16 +103,16 @@ def get_infos(cid, catalog, max_infos=None):
     log.info(id)
     try:
       info = get(f"{catalog['about']['x_url']}/info?id={id}", timeout=timeout, log=log, indent="  ")
-      info['x_LastUpdate'] = utilrsw.utc_now()
+      info['x_LastUpdate'] = utilrsw.time.utc_now()
     except Exception as e:
       info = {
         'x_LastUpdateError': str(e),
-        'x_LastUpdateAttempt': utilrsw.utc_now()
+        'x_LastUpdateAttempt': utilrsw.time.utc_now()
       }
 
     if 'parameters' not in info:
       info = {
-        'x_LastUpdateAttempt': utilrsw.utc_now(),
+        'x_LastUpdateAttempt': utilrsw.time.utc_now(),
         'x_LastUpdateError': "No parameters node in JSON response."
       }
 
@@ -128,7 +128,7 @@ def get_infos(cid, catalog, max_infos=None):
         log.info("  No last successful /info response found.")
         continue
     else:
-      info['x_LastUpdate'] = utilrsw.utc_now()
+      info['x_LastUpdate'] = utilrsw.time.utc_now()
 
     try:
       log.info(f"  Writing {fname}")
