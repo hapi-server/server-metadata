@@ -96,7 +96,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
       plt.savefig(f"{_fname}")
-      utilrsw.svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug_svglinks)
+      utilrsw.svg.svglinks(_fname, link_attribs={'target': '_blank'}, debug=debug_svglinks)
 
     if 'png' in savefig_fmts:
       _fname = os.path.join(server_dir, "png", f"{server}.{fn}.png")
