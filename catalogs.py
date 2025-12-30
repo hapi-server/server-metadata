@@ -25,7 +25,7 @@ def get_catalogs(abouts, servers_only=None):
   catalogs = {}
   for about in abouts:
 
-    now = utilrsw.utc_now()
+    now = utilrsw.time.utc_now()
     server_id = about['id']
 
     if servers_only is not None and server_id not in servers_only:
