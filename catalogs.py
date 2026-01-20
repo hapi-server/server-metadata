@@ -9,11 +9,13 @@ timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
-  servers_only = ["SuperMAG"]
+  servers_only = ["TestData2.1"]
+  #servers_only = ["INTERMAGNET", "SuperMAG", "WDC"]
   #max_infos = 1
 
+servers_repo = os.path.join(data_dir, '..', 'servers')
 files = {
-  'abouts': os.path.join(data_dir, 'abouts.json'),
+  'abouts': ['abouts.json', 'abouts-dev.json', 'abouts-test.json'],
   'catalogs': os.path.join(data_dir, 'catalogs.json'),
   'catalogs_all': os.path.join(data_dir, 'catalogs-all.json')
 }
@@ -83,12 +85,13 @@ def get_catalogs(abouts, servers_only=None):
     catalogs[server_id] = catalog_reordered
 
     try:
-      utilrsw.write(fname, catalog_reordered)
-    except:
-      log.error(f"Error writing {fname}. Exiting with code 1.")
+      utilrsw.write(fname, catalog_reordered, logger=log)
+    except Exception as e:
+      log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
       exit(1)
 
   return catalogs
+
 
 def get_infos(cid, catalog, max_infos=None):
 
@@ -102,7 +105,8 @@ def get_infos(cid, catalog, max_infos=None):
     id = dataset['id']
     log.info(id)
     try:
-      info = get(f"{catalog['about']['x_url']}/info?id={id}", timeout=timeout, log=log, indent="  ")
+      kwargs = {'log': log, 'indent': "  ", 'timeout': timeout}
+      info = get(f"{catalog['about']['x_url']}/info?id={id}", **kwargs)
       info['x_LastUpdate'] = utilrsw.time.utc_now()
     except Exception as e:
       info = {
@@ -149,13 +153,32 @@ def get_infos(cid, catalog, max_infos=None):
     if max_infos is not None and n >= max_infos:
       log.info(f"Stoping because {max_infos} /info requests made.")
       return
+
     n = n + 1
 
-try:
-  abouts = utilrsw.read(files['abouts'])
-except Exception as e:
-  log.error(f"Error reading {files['abouts']}: {e}")
-  exit(1)
+  try:
+    fname = f"{data_dir}/catalogs/{cid}-all.json"
+    log.info(f"  Writing {fname}")
+    utilrsw.write(fname, catalog['catalog'])
+  except Exception as e:
+    log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
+
+def read_abouts(servers_repo, about_files):
+  abouts = []
+  for file in about_files:
+    file = os.path.join(servers_repo, file)
+    try:
+      abouts.append(utilrsw.read(file))
+    except Exception as e:
+      log.error(f"Error reading {file}: {e}. Exiting with code 1.")
+      exit(1)
+  return sum(abouts, [])  # Flatten list of lists.
+
+
+log.info(40*"-")
+log.info("Reading abouts.")
+abouts = read_abouts(servers_repo, files['abouts'])
+log.info(40*"-")
 
 log.info(40*"-")
 log.info("Starting /catalog requests.")
@@ -168,9 +191,9 @@ log.info("Finished /catalog requests.")
 log.info(40*"-")
 
 try:
-  utilrsw.write(files['catalogs'], catalogs)
-except:
-  log.error(f"Error writing {files['catalogs']}. Exiting with code 1.")
+  utilrsw.write(files['catalogs'], catalogs, logger=log)
+except Exception as e:
+  log.error(f"Error writing {files['catalogs']}: {e}. Exiting with code 1.")
   exit(1)
 
 log.info(40*"-")
@@ -201,6 +224,7 @@ for file in ['catalogs_all', 'catalogs']:
       for dataset in catalogs[server]['catalog']:
         if 'info' in dataset:
           del dataset['info']
+        if 'about' in dataset:
           del dataset['about']
 
   try:
