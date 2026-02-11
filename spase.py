@@ -8,14 +8,16 @@ servers = utilrsw.read(all_file)
 
 servers_keep = None # All servers
 #servers_keep = ["CDAWeb"] # Only these servers
+servers_keep = ["TestData3.3"] # Only these servers
 
 def spase_stub(config):
   SchemaURL = config.get("SchemaURL", None)
+  Version = config.get("Version")
   Spase = {
     "xmlns": SchemaURL,
     "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-    "xsi:schemaLocation": f"{SchemaURL} {SchemaURL}/spase-2.7.0.xsd",
-    "Version": config.get("Version", None),
+    "xsi:schemaLocation": f"{SchemaURL} {SchemaURL}/spase-{Version}.xsd",
+    "Version": Version,
     "NumericalData": {
       "AccessInformation": [],
       "Parameter": []
@@ -65,6 +67,32 @@ def add_AccessInformation(Spase, dataset, about, template):
   Spase['NumericalData']['AccessInformation'] = template
   return None
 
+def add_DOI(Spase, dataset):
+
+  def extract_doi(doi_string):
+    DOI = None
+    if doi_string.startswith('https://doi.org/'):
+      DOI = doi_string[len('https://doi.org/'):]
+    if doi_string.startswith('doi:'):
+      DOI = doi_string[len('doi:'):]
+    return DOI
+
+  #dataset['info']['datasetCitation'] = 'doi:10.1234/dataset1'
+
+  datasetCitation = utilrsw.get_path(dataset, 'info/datasetCitation', sep='/')
+  resourceID = utilrsw.get_path(dataset, 'info/resourceID', sep='/')
+
+  if datasetCitation is not None:
+    DOI = extract_doi(datasetCitation)
+    if DOI is not None:
+      Spase['NumericalData']['DOI'] = DOI
+  else:
+    if resourceID is not None:
+      DOI = extract_doi(resourceID)
+      if DOI is not None:
+        Spase['NumericalData']['DOI'] = DOI
+
+  return None
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 out_path = os.path.join(script_path, 'data', 'spase')
@@ -89,6 +117,7 @@ for server in servers:
     #logger.info("Input:\n" + utilrsw.format_dict(dataset, style='json'))
 
     add_NumericalData(Spase, dataset, config['hapi2spase']['dataset'])
+    add_DOI(Spase, dataset)
     add_AccessInformation(Spase, dataset, about, config['AccessInformation'])
     add_Parameter(Spase, dataset, config['hapi2spase']['parameter'])
 

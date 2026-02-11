@@ -36,9 +36,12 @@
   "hapi2spase": {
     "dataset": {
       "id": "ProviderResourceName",
+      "title": "ResourceHeader/ResourceName",
+      "info/description": "ResourceHeader/Description",
       "info/cadence": "TemporalDescription/Cadence",
       "info/startDate": "TemporalDescription/TimeSpan/StartDate",
-      "info/stopDate": "TemporalDescription/TimeSpan/StopDate"
+      "info/stopDate": "TemporalDescription/TimeSpan/StopDate",
+      "info/warning": "Caveats"
     },
     "parameter": {
       "name": "ParameterKey",
