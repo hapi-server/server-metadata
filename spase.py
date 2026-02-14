@@ -10,6 +10,11 @@ servers_keep = None # All servers
 #servers_keep = ["CDAWeb"] # Only these servers
 servers_keep = ["TestData3.3"] # Only these servers
 
+# Set to True to read info from data/info directory instead of from the catalog.
+# Use this for testing to avoid having to re-run the catalog step after making
+# changes to the info files.
+reread_info = True 
+
 def spase_stub(config):
   SchemaURL = config.get("SchemaURL", None)
   Version = config.get("Version")
@@ -67,6 +72,7 @@ def add_AccessInformation(Spase, dataset, about, template):
   Spase['NumericalData']['AccessInformation'] = template
   return None
 
+
 def add_DOI(Spase, dataset):
 
   def extract_doi(doi_string):
@@ -94,6 +100,34 @@ def add_DOI(Spase, dataset):
 
   return None
 
+
+def add_SpatialMapping(Spase, dataset):
+
+  geoLocation = utilrsw.get_path(dataset, 'info/geoLocation', sep='/')
+
+  # Technically this should not be used. In SPASE, lat/long are in GEO
+  # and elevation in WGS84. In HAPI, lat/long/elevation must be in WGS 84.
+  if geoLocation is not None:
+    Spase['NumericalData']['SpatialMapping'] = {
+      "centerLongitude": geoLocation[0],
+      "centerLatitude": geoLocation[1]
+    }
+    if len(geoLocation) > 2:
+      Spase['NumericalData']['SpatialMapping']['centerElevation'] = geoLocation[2]
+    Spase['NumericalData']['SpatialMapping']['Description'] = "Spatial location of the dataset. In SPASE, lat/long are in GEO and elevation in WGS84. In HAPI, lat/long/elevation must be in WGS 84. Here lat, long, and elevation are all in WGS 84."
+
+  point = utilrsw.get_path(dataset, 'info/location/point', sep='/')
+  coordinateSystemName = utilrsw.get_path(dataset, 'info/location/coordinateSystemName', sep='/')
+  if point is not None and coordinateSystemName == 'GEO':
+    Spase['NumericalData']['SpatialMapping'] = {
+      "centerLongitude": point[0],
+      "centerLatitude": point[1]
+    }
+  if len(point) > 2:
+    Spase['NumericalData']['SpatialMapping']['centerElevation'] = point[2]
+
+  return None
+
 script_path = os.path.dirname(os.path.realpath(__file__))
 out_path = os.path.join(script_path, 'data', 'spase')
 
@@ -114,10 +148,17 @@ for server in servers:
     dataset['server'] = server
     dataset['dataset'] = dataset['id']
 
+    if reread_info:
+      info_file = os.path.join(script_path, 'data', 'infos', server, f"{dataset['id']}.json")
+      info_dict = utilrsw.read(info_file)
+      dataset['info'] = info_dict
+      logger.info(f"  Replacing info from {all_file} with that in {info_file}.")
+
     #logger.info("Input:\n" + utilrsw.format_dict(dataset, style='json'))
 
     add_NumericalData(Spase, dataset, config['hapi2spase']['dataset'])
     add_DOI(Spase, dataset)
+    add_SpatialMapping(Spase, dataset)
     add_AccessInformation(Spase, dataset, about, config['AccessInformation'])
     add_Parameter(Spase, dataset, config['hapi2spase']['parameter'])
 
