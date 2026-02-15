@@ -19,7 +19,7 @@ logger_kwargs = {
   "debug_logger": False
 }
 
-def get(url, log=None, timeout=20, indent=""):
+def get(url, log=None, timeout=20, retries=3, indent=""):
 
   assert log is not None, "log keyword argument must be provided"
   # TODO: Handle log=None
@@ -29,10 +29,12 @@ def get(url, log=None, timeout=20, indent=""):
   from requests.adapters import HTTPAdapter
   from requests.packages.urllib3.util.retry import Retry
 
-  retries = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
+  retries = Retry(total=retries, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
 
   log.info(f"{indent}Getting {url}")
-  headers = {'User-Agent': f'hapibot-mirror/{version()}; https://github.com/hapi-server/data-specification/wiki/hapi-bots.md#hapibot-mirror'}
+  user_agent = f'hapibot-mirror/{version()}; '
+  user_agent += 'https://github.com/hapi-server/data-specification/wiki/hapi-bots.md#hapibot-mirror'
+  headers = {'User-Agent': user_agent}
   session = requests.Session()
   session.mount('http://', HTTPAdapter(max_retries=retries))
   session.mount('https://', HTTPAdapter(max_retries=retries))

@@ -1,7 +1,7 @@
 import json
 from setuptools import setup, find_packages
 
-install_requires = ["hapiplot", "hapiclient"]
+install_requires = ["hapiplot", "hapiclient", "deepdiff"]
 
 try:
   # Will work if utilrsw was already installed, for example via pip install -e .
@@ -28,7 +28,7 @@ setup(
   name='hapimeta',
   version=version,
   description='A package for metadata from HAPI servers.',
-  author='Bob Weigel, Jeremy Faden',
+  author='Bob Weigel and Jeremy Faden',
   author_email='rweigel@gmu.edu',
   packages=find_packages(),
   install_requires=install_requires
