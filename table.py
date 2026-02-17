@@ -1,7 +1,7 @@
 import utilrsw
 import tableui
 
-logger = utilrsw.logger('table', log_dir='log')
+logger = utilrsw.logger('table', log_dir='data/log')
 
 def reorder_keys(d):
   # move keys starting with 'x_' to the end, preserving relative order
