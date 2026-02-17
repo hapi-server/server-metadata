@@ -1,7 +1,7 @@
 import os
 import utilrsw
 
-logger = utilrsw.logger('spase', log_dir='log')
+logger = utilrsw.logger('spase', log_dir='data/log')
 
 all_file = 'data/catalogs-all.pkl'
 servers = utilrsw.read(all_file)

@@ -28,7 +28,6 @@ fi
 python abouts.py
 git -C servers commit -a -m "Update abouts.json, all.txt, all_.txt [skip ci]"
 git  -C servers push
-exit 0
 
 python catalogs.py
 python availabilities.py

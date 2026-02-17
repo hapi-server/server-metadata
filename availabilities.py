@@ -210,6 +210,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
   return files
 
+
 def html(files, server_dir):
   import base64
 
@@ -307,6 +308,7 @@ def html(files, server_dir):
     html_content_png = html_content_png.replace("SEARCH", "")
     fname = os.path.join(os.path.dirname(file_png), f'{server}.html')
     write(fname, html_content_png)
+
 
 def process_server(server, catalogs_all):
 
@@ -406,7 +408,3 @@ for server in servers:
 dfs = pandas.concat(dfs, ignore_index=True)
 write(f"{base_dir}/availabilities.pkl", df)
 write(f"{base_dir}/availabilities.csv", df)
-
-# Remove error log file if empty.
-f = os.path.join(logger_kwargs['log_dir'], "availabilities.errors.log")
-utilrsw.rm_if_empty(f)
