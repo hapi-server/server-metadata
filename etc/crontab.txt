@@ -1,2 +1,2 @@
-# Note - put this in admin/mini, which has other crontab commands
+# crontab.sh writes stdout to data/crontab/crontab-DATE.log
 22 3 * * * cd ~/git/hapi/server-metadata/; /bin/zsh -i etc/crontab.sh

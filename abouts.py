@@ -222,7 +222,6 @@ if not os.path.exists(script_info['path']):
   exit(1)
 
 write_legacy()
-exit()
 
 for fname in fnames:
   abouts_last_fname = f'servers/abouts{fname}.json'
