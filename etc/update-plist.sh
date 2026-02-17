@@ -9,11 +9,11 @@ sudo launchctl stop $1.plist
 # Above does not always stop service. Not sure why. Use
 #sudo pkill -f $1.sh
 
-rm -f log/$1/stdout
-rm -f log/$1/stderr
+rm -f ../data/log/$1/stdout
+rm -f ../data/log/$1/stderr
 
 sudo launchctl start $1.plist
 
 sleep 2
-tail log/$1/stdout
-tail log/$1/stderr
+tail ../data/log/$1/stdout
+tail ../data/log/$1/stderr

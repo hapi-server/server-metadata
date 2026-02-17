@@ -22,8 +22,8 @@
         <key>KeepAlive</key>
         <true/>
 	<key>StandardErrorPath</key>
-        <string>/Users/weigel/git/hapi/server-metadata/etc/log/serve-table/stderr</string>
+        <string>/Users/weigel/git/hapi/server-metadata/data/log/serve-table/stderr</string>
         <key>StandardOutPath</key>
-        <string>/Users/weigel/git/hapi/server-metadata/etc/log/serve-table/stdout</string>
+        <string>/Users/weigel/git/hapi/server-metadata/data/log/serve-table/stdout</string>
     </dict>
 </plist>
