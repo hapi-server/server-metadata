@@ -1,16 +1,16 @@
 import os
 
 import utilrsw
-from hapimeta import get, logger_kwargs, data_dir
+from hapimeta import get, logger, data_dir, cli
 
-log = utilrsw.logger(**logger_kwargs)
+log = logger('abouts')
 
 # Reads and write to servers/ subdir, which must be created by cloning
 # https://github.com/hapi-server/servers in same dir as this script.
 
 simulate = False # Set to True to simulate updates for a few servers
 fnames   = ['', '-dev', '-test'] # Files to process are named abouts{fname}.json
-servers  = None   # None => all servers
+servers  = cli()  # None => all servers
 timeout  = 10     # Request timeout in seconds
 retries  = 3      # Number of retries for requests
 if simulate:

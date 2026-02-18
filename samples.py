@@ -149,6 +149,3 @@ for server in catalogs_all.keys():
 
 for server in servers:
   process_server(catalogs_all[server], server, datasets_only)
-
-# Remove error log file if empty.
-utilrsw.rm_if_empty(os.path.join("log", "samples.errors.log"))

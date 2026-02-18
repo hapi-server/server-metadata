@@ -10,14 +10,25 @@ __version__ = version()
 
 data_dir = 'data'
 
-logger_kwargs = {
-  "log_dir": "data/log",
-  "console_format": u"%(asctime)s.%(msecs)03dZ %(levelname)s %(message)s",
-  "file_format": u"%(levelname)s %(message)s",
-  "datefmt": "%H:%M:%S",
-  "color": True,
-  "debug_logger": False
-}
+def logger(base_name):
+  import utilrsw
+  kwargs = {
+    "log_dir": "data/log",
+    "console_format": u"%(asctime)s.%(msecs)03dZ %(levelname)s %(message)s",
+    "file_format": u"%(levelname)s %(message)s",
+    "datefmt": "%H:%M:%S",
+    "color": True,
+    "debug_logger": False
+  }
+  return utilrsw.logger(base_name, **kwargs)
+
+def cli():
+  import sys
+  servers = None
+  if len(sys.argv) > 1:
+    servers = sys.argv[1].split(',')
+    print(f"Processing servers: {servers}")
+  return servers
 
 def get(url, log=None, timeout=20, retries=3, indent=""):
 

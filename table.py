@@ -1,7 +1,11 @@
+import os
+
 import utilrsw
 import tableui
 
-logger = utilrsw.logger('table', log_dir='data/log')
+from hapimeta import logger, data_dir, cli
+
+log = logger('table')
 
 def reorder_keys(d):
   # move keys starting with 'x_' to the end, preserving relative order
@@ -79,16 +83,14 @@ def compute_rows(all_file, servers=None, omits=[]):
 
   return rows
 
-file = 'data/catalogs-all.pkl'
+file = os.path.join(data_dir, 'catalogs-all.pkl')
 omits = ['info/HAPI', 'info/status', 'info/definitions', 'info/x_LastUpdate']
-servers = None # All servers
-#servers = ['CSA']
+servers = cli() # None => all servers
 
 rows = compute_rows(file, omits=omits, servers=servers)
 
-config = utilrsw.read('table/dict2sql.json')
-tableui.dict2sql(rows['dataset'], config['dataset'], logger=logger)
-tableui.dict2sql(rows['parameter'], config['parameter'], logger=logger)
+config = utilrsw.read(os.path.join(utilrsw.script_info()['dir'], 'table', 'dict2sql.json'))
+tableui.dict2sql(rows['dataset'], config['dataset'], logger=log)
+tableui.dict2sql(rows['parameter'], config['parameter'], logger=log)
 
-print('Serve using\n python etc/serve-table.py table/tableui.json --port 6002')
-#tableui.serve(config='table/tableui.json', port=6001)
+print('See etc/serve.sh for command to serve table.')

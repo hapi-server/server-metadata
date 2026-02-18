@@ -2,16 +2,15 @@
 #   python availability.py [server_id1,server_id2,...]
 
 import os
-import sys
 import pandas
 
 import utilrsw
 
 from datetime import datetime, timedelta
 from hapiclient import hapitime2datetime
-from hapimeta import logger_kwargs, data_dir
+from hapimeta import logger, data_dir, cli
 
-log = utilrsw.logger(**logger_kwargs)
+log = logger('availabilities')
 
 debug_layout = False
 debug_svglinks = False
@@ -36,6 +35,7 @@ def write(fname, data, logger=None):
   except Exception as e:
     log.error(f"Error writing {fname}: {e}")
     raise e
+
 
 def plot(server, server_url, server_dir, title, datasets, starts, stops,
          lines_per_plot=lines_per_plot,
@@ -388,9 +388,8 @@ def process_server(server, catalogs_all):
 
 catalogs_all = utilrsw.read(catalogs_all_file)
 
-servers_only = None
-if len(sys.argv) > 1:
-  servers_only = sys.argv[1].split(',')
+servers_only = cli()
+if servers_only:
   log.info(f"Generating availability for {servers_only}")
 else:
   log.info(f"Generating availability for all servers in {catalogs_all_file}")
@@ -400,6 +399,10 @@ for server in catalogs_all.keys():
   if servers_only is not None and server not in servers_only:
     continue
   servers.append(server)
+
+if len(servers) == 0:
+  log.error("No servers to process.")
+  exit(1)
 
 dfs = []
 for server in servers:

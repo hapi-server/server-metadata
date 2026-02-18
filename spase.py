@@ -1,19 +1,19 @@
 import os
 import utilrsw
 
-logger = utilrsw.logger('spase', log_dir='data/log')
+from hapimeta import cli, logger
+
+log = utilrsw.logger('spase')
 
 all_file = 'data/catalogs-all.pkl'
 servers = utilrsw.read(all_file)
 
-servers_keep = None # All servers
-#servers_keep = ["CDAWeb"] # Only these servers
-servers_keep = ["TestData3.3"] # Only these servers
+servers_keep = cli() # None => all servers
 
 # Set to True to read info from data/info directory instead of from the catalog.
 # Use this for testing to avoid having to re-run the catalog step after making
 # changes to the info files.
-reread_info = True 
+reread_info = True
 
 def spase_stub(config):
   SchemaURL = config.get("SchemaURL", None)
@@ -50,6 +50,8 @@ def add_Parameter(Spase, dataset, map):
 
 def add_AccessInformation(Spase, dataset, about, template):
   import copy
+
+  # TODO: Need to get formats supported from capabilities response.
 
   def script_info():
     # TODO: Get languages from https://hapi-server.org/servers/?return=script-options
@@ -118,15 +120,17 @@ def add_SpatialMapping(Spase, dataset):
 
   point = utilrsw.get_path(dataset, 'info/location/point', sep='/')
   coordinateSystemName = utilrsw.get_path(dataset, 'info/location/coordinateSystemName', sep='/')
-  if point is not None and coordinateSystemName == 'GEO':
-    Spase['NumericalData']['SpatialMapping'] = {
-      "centerLongitude": point[0],
-      "centerLatitude": point[1]
-    }
-  if len(point) > 2:
-    Spase['NumericalData']['SpatialMapping']['centerElevation'] = point[2]
+  if point is not None:
+    if coordinateSystemName == 'GEO':
+      Spase['NumericalData']['SpatialMapping'] = {
+        "centerLongitude": point[0],
+        "centerLatitude": point[1]
+      }
+    if len(point) > 2:
+      Spase['NumericalData']['SpatialMapping']['centerElevation'] = point[2]
 
   return None
+
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 out_path = os.path.join(script_path, 'data', 'spase')
@@ -140,7 +144,7 @@ for server in servers:
   if servers_keep is not None and server not in servers_keep:
     continue
 
-  logger.info(f"Processing server: {server}")
+  log.info(f"Processing server: {server}")
 
   catalog = servers[server]['catalog']
   about = servers[server]['about']
@@ -152,9 +156,9 @@ for server in servers:
       info_file = os.path.join(script_path, 'data', 'infos', server, f"{dataset['id']}.json")
       info_dict = utilrsw.read(info_file)
       dataset['info'] = info_dict
-      logger.info(f"  Replacing info from {all_file} with that in {info_file}.")
+      log.info(f"  Replacing info from {all_file} with that in {info_file}.")
 
-    #logger.info("Input:\n" + utilrsw.format_dict(dataset, style='json'))
+    #log.info("Input:\n" + utilrsw.format_dict(dataset, style='json'))
 
     add_NumericalData(Spase, dataset, config['hapi2spase']['dataset'])
     add_DOI(Spase, dataset)
@@ -162,8 +166,8 @@ for server in servers:
     add_AccessInformation(Spase, dataset, about, config['AccessInformation'])
     add_Parameter(Spase, dataset, config['hapi2spase']['parameter'])
 
-    #logger.info("Output:\n" + utilrsw.format_dict(Spase, style='json'))
+    #log.info("Output:\n" + utilrsw.format_dict(Spase, style='json'))
 
     out_file = os.path.join(out_path, server, f"{dataset['id']}.json")
-    logger.debug(f"Writing {out_file}")
+    log.debug(f"Writing {out_file}")
     utilrsw.write(out_file, Spase)

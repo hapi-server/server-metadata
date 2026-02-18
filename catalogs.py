@@ -1,17 +1,15 @@
 import os
 import utilrsw
-from hapimeta import get, logger_kwargs, data_dir
+from hapimeta import get, logger, data_dir, cli
 
 debug        = False
-servers_only = None # None to get all servers; otherwise list of server ids.
+servers_only = cli() # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
 timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
-  servers_only = ["TestData2.1"]
-  #servers_only = ["INTERMAGNET", "SuperMAG", "WDC"]
-  #max_infos = 1
+  max_infos = 1
 
 servers_repo = os.path.join(data_dir, '..', 'servers')
 files = {
@@ -20,11 +18,11 @@ files = {
   'catalogs_all': os.path.join(data_dir, 'catalogs-all.json')
 }
 
-log = utilrsw.logger(**logger_kwargs)
+log = logger('catalogs')
 
-def get_catalogs(abouts, servers_only=None):
+def get_endpoints(abouts, endpoint, servers_only=None):
 
-  catalogs = {}
+  results = {}
   for about in abouts:
 
     now = utilrsw.time.utc_now()
@@ -37,60 +35,53 @@ def get_catalogs(abouts, servers_only=None):
 
     log.info(server_id)
     try:
-      catalog = get(f"{about['x_url']}/catalog", log=log, indent="  ", timeout=timeout)
+      result = get(f"{about['x_url']}/{endpoint}", log=log, indent="  ", timeout=timeout)
     except Exception as e:
       log.error(f"  {e}")
-      catalog = {
+      result = {
         'x_LastUpdateAttempt': now,
         'x_LastUpdateError': str(e)
       }
 
-    if 'catalog' not in catalog:
-      catalog = {
+    if endpoint == 'catalog' and 'catalog' not in result:
+      result = {
         'x_LastUpdateAttempt': now,
         'x_LastUpdateError': "No catalog node in JSON response."
       }
+    if endpoint == 'capabilities' and 'outputFormats' not in result:
+      result = {
+        'x_LastUpdateAttempt': now,
+        'x_LastUpdateError': "No outputFormats node in JSON response."
+      }
 
-    catalog['about'] = about
+    if 'HAPI' in result:
+      del result["HAPI"]
+    if 'status' in result:
+      del result["status"]
 
-    if 'HAPI' in catalog:
-      del catalog["HAPI"]
-    if 'status' in catalog:
-      del catalog["status"]
-
-    fname = f"{data_dir}/catalogs/{server_id}.json"
-    if 'x_LastUpdateError' in catalog:
-      log.info("  Attempting to read last successful /catalog response.")
+    fname = f"{data_dir}/{endpoint}/{server_id}.json"
+    if 'x_LastUpdateError' in result:
+      log.info(f"  Attempting to read last successful /{endpoint} response.")
       try:
-        catalog_last = utilrsw.read(fname)
-        log.info("  Read last successful /catalog response.")
+        result_last = utilrsw.read(fname)
+        log.info(f"  Read last successful /{endpoint} response.")
         # Overwrites x_LastUpdate{Attempt,Error}
-        catalog = {**catalog_last, **catalog}
-      except:
-        log.info("  No last successful /catalog response found.")
+        result = {**result_last, **result}
+      except Exception:
+        log.info(f"  No last successful /{endpoint} response found or read of it failed.")
         continue
     else:
-      catalog['x_LastUpdate'] = now
+      result['x_LastUpdate'] = now
 
-    catalog_reordered = {}
-    if 'x_LastUpdate' in catalog:
-      catalog_reordered['x_LastUpdate'] = catalog['x_LastUpdate']
-    if 'x_LastUpdateAttempt' in catalog:
-      catalog_reordered['x_LastUpdateAttempt'] = catalog['x_LastUpdateAttempt']
-    if 'x_LastUpdateError' in catalog:
-      catalog_reordered['x_LastUpdateError'] = catalog['x_LastUpdateError']
-    catalog_reordered['about'] = catalog['about']
-    catalog_reordered['catalog'] = catalog['catalog']
-
-    catalogs[server_id] = catalog_reordered
+    results[server_id] = result
 
     try:
-      utilrsw.write(fname, catalog_reordered, logger=log)
+      utilrsw.write(fname, result, logger=log)
     except Exception as e:
       log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
       exit(1)
 
-  return catalogs
+  return results
 
 
 def get_infos(cid, catalog, max_infos=None):
@@ -163,6 +154,7 @@ def get_infos(cid, catalog, max_infos=None):
   except Exception as e:
     log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
 
+
 def read_abouts(servers_repo, about_files):
   abouts = []
   for file in about_files:
@@ -174,22 +166,32 @@ def read_abouts(servers_repo, about_files):
       exit(1)
   return sum(abouts, [])  # Flatten list of lists.
 
-
+parts = {}
 log.info(40*"-")
 log.info("Reading abouts.")
 abouts = read_abouts(servers_repo, files['abouts'])
 log.info(40*"-")
 
-log.info(40*"-")
-log.info("Starting /catalog requests.")
-log.info(40*"-")
+for endpoint in ['catalog', 'capabilities']:
+  log.info(f"{40*"-"}\nStarting /{endpoint} requests\n{40*"-"}.")
+  parts[endpoint] = get_endpoints(abouts, endpoint, servers_only=servers_only)
+  log.info(f"{40*"-"}\nStarting /{endpoint} requests\n{40*"-"}.")
 
-catalogs = get_catalogs(abouts, servers_only=servers_only)
+catalogs = []
+for about in abouts:
+  server_id = about['id']
+  if servers_only is not None and server_id not in servers_only:
+    continue
+  catalog = {'about': about}
+  for endpoint in ['catalog', 'capabilities']:
+      if server_id in parts[endpoint]:
+        print(f"Adding {endpoint}")
+        print(catalog.keys())
+        catalog[endpoint] = parts[endpoint][server_id]
+        print(catalog.keys())
+  catalogs.append(catalog)
 
-log.info(40*"-")
-log.info("Finished /catalog requests.")
-log.info(40*"-")
-
+exit()
 try:
   utilrsw.write(files['catalogs'], catalogs, logger=log)
 except Exception as e:
@@ -240,6 +242,3 @@ for file in ['catalogs_all', 'catalogs']:
     log.error(f"Error writing {file_pkl}: {e}. Exiting with code 1.")
     exit(1)
 
-# Remove error log file if empty.
-f = os.path.join(logger_kwargs['log_dir'], "catalogs.errors.log")
-utilrsw.rm_if_empty(f)
