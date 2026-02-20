@@ -401,7 +401,7 @@ for server in catalogs_all.keys():
   servers.append(server)
 
 if len(servers) == 0:
-  log.error("No servers to process.")
+  log.error(f"No servers to process. Possible servers: {catalogs_all.keys()}")
   exit(1)
 
 dfs = []

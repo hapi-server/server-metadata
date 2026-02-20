@@ -191,7 +191,6 @@ for about in abouts:
         print(catalog.keys())
   catalogs.append(catalog)
 
-exit()
 try:
   utilrsw.write(files['catalogs'], catalogs, logger=log)
 except Exception as e:
