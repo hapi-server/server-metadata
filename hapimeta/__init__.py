@@ -22,13 +22,34 @@ def logger(base_name):
   }
   return utilrsw.logger(base_name, **kwargs)
 
+
 def cli():
-  import sys
-  servers = None
-  if len(sys.argv) > 1:
-    servers = sys.argv[1].split(',')
-    print(f"Processing servers: {servers}")
+  # Usage
+  #    python abouts.py [server1,server2,...]
+
+  import argparse
+
+  parser = argparse.ArgumentParser(
+    description='Process metadata for all servers or a comma-separated subset.',
+    epilog='Examples:\n  python abouts.py\n  python abouts.py server1,server2',
+    formatter_class=argparse.RawDescriptionHelpFormatter
+  )
+  parser.add_argument(
+    'servers',
+    nargs='?',
+    default=None,
+    help='Comma-separated list of server IDs'
+  )
+
+  args, _ = parser.parse_known_args()
+
+  if args.servers is None:
+    return None
+
+  servers = [server.strip() for server in args.servers.split(',') if server.strip()]
+  print(f"Processing servers: {servers}")
   return servers
+
 
 def get(url, log=None, timeout=20, retries=3, indent=""):
 
@@ -64,3 +85,23 @@ def get(url, log=None, timeout=20, retries=3, indent=""):
     log.error(f"{indent}Error parsing JSON from {url}:\n  {e}")
     raise e
   return data
+
+
+def config(part, simulate=False):
+
+  cfg = {
+    'about': {
+      "repo_url": 'https://github.com/hapi-server/servers',
+      "repo_dir": 'servers',
+      "files": [
+        'abouts.json',
+        'abouts-dev.json',
+        'abouts-test.json'],
+      "servers": cli(),  # None => all servers
+      "simulate": False, # For debugging, internally simulate changes
+      "timeout": 10,     # Request timeout in seconds. Use small # to simulate server/network issues
+      "retries": 3       # # of retries for requests. Use zero to simulate server/network issues
+    }
+  }
+
+  return cfg[part]

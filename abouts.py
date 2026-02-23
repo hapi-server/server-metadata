@@ -1,29 +1,36 @@
-import os
-
 import utilrsw
-from hapimeta import get, logger, data_dir, cli
+import hapimeta
 
-log = logger('abouts')
+log = hapimeta.logger('abouts')
 
-# Reads and write to servers/ subdir, which must be created by cloning
-# https://github.com/hapi-server/servers in same dir as this script.
+def abouts(cfg):
 
-simulate = False # Set to True to simulate updates for a few servers
-fnames   = ['', '-dev', '-test'] # Files to process are named abouts{fname}.json
-servers  = cli()  # None => all servers
-timeout  = 10     # Request timeout in seconds
-retries  = 3      # Number of retries for requests
-if simulate:
-  fnames  = ['']
-  servers = ['CDAWeb']
-  timeout = 1
-  retries = 0
+  utilrsw.git.clone_or_pull(cfg['repo_dir'], cfg['repo_url'], logger=log)
 
-def equivalent_dicts(old, new, ignore=None):
+  for file in cfg['files']:
+    last = f'{cfg["repo_dir"]}/{file}'
+    default = f'{cfg["repo_dir"]}/defaults/{file}'
+
+    kwargs = {
+      "timeout": cfg['timeout'],
+      "retries": cfg['retries']
+    }
+    updated = _update(cfg['servers'], last, default, **kwargs)
+    _write(updated, last)
+
+  _write_legacy()
+
+  msg = "Update abouts.json, all.txt, all_.txt [skip ci]"
+  utilrsw.git.push(cfg['repo_dir'], cfg['repo_url'], msg, logger=log)
+
+
+def _equivalent_dicts(old, new, ignore=None):
   """Return True if dicts dicts are same, ignoring certain x_ keys."""
   import json
   import deepdiff
 
+  old_filtered = old
+  new_filtered = new
   if ignore is not None:
     old_filtered = {k: v for k, v in old.items() if k not in ignore}
     new_filtered = {k: v for k, v in new.items() if k not in ignore}
@@ -34,41 +41,8 @@ def equivalent_dicts(old, new, ignore=None):
   return diff
 
 
-def merge_dicts(base, override, base_name='base', override_name='override', depth=0):
-
-  import copy
-  import json
-  import deepdiff
-
-  new = copy.deepcopy(base)
-  for key, value in override.items():
-
-    if isinstance(value, dict) and key in base and isinstance(base[key], dict):
-      merge_dicts(base[key], value,
-                  base_name=base_name, override_name=override_name, depth=depth+1)
-    else:
-      if key not in base:
-        log.info(f"    Adding {key} = '{value}' from {override_name}")
-        new[key] = value
-      else:
-        msgo = f"{key} = '{override[key]}' in {override_name} is"
-        if base[key] == value:
-          log.info(f"    No update: {msgo} same as in {base_name}.")
-        else:
-          msg = f"    Update:    {msgo} different from {base_name} '{base[key]}'. "
-          msg += f"Using {override_name} value."
-          log.info(msg)
-          new[key] = value
-
-  diff = deepdiff.DeepDiff(base, new, ignore_order=True)
-  diff = json.loads(diff.to_json())
-  if not diff and depth == 0:
-    log.info("    No updates needed.")
-
-  return new
-
-
-def update(abouts_last_fname, abouts_default_fname):
+def _update(servers, lasts_fname, defaults_fname,
+            timeout=20, retries=3, simulate=False):
 
   keys_added = ['x_LastUpdateAttempt',
                 'x_LastUpdateError',
@@ -76,71 +50,83 @@ def update(abouts_last_fname, abouts_default_fname):
                 'x_LastChangeDiff'
               ]
 
-  log.info(f"Reading default abouts.json from {abouts_default_fname}")
+  log.info(f"Reading default abouts.json from {defaults_fname}")
   try:
-    abouts_default = utilrsw.read(abouts_default_fname)
+    defaults = utilrsw.read(defaults_fname)
   except Exception as e:
-    log.error(f"Cannot continue. Error reading {abouts_default_fname}: {e}")
+    log.error(f"Cannot continue. Error reading {defaults_fname}: {e}")
     exit(1)
 
-  log.info(f"Reading last abouts.json from {abouts_last_fname}")
+  log.info(f"Reading last abouts.json from {lasts_fname}")
   try:
-    abouts_last = utilrsw.read(abouts_last_fname)
+    lasts = utilrsw.read(lasts_fname)
+    # Convert array of dicts to dict of dicts keyed by x_url
+    lasts_dict = utilrsw.array_to_dict(lasts, key='x_url')
   except Exception as e:
-    emsg = f"Error reading {abouts_last_fname} {e}. "
-    emsg += f"Will use contents of {abouts_default_fname}"
+    emsg = f"Error reading {lasts_fname} {e}. "
+    emsg += f"Will use contents of {defaults_fname}"
     log.error(emsg)
-    return abouts_default
+    return defaults
 
   abouts_updated = []
-  for about_default in abouts_default:
+  for default in defaults:
 
-    if servers is not None and about_default['id'] not in servers:
-      log.info(f"Skipping {about_default['id']}.")
+    if servers is not None and default['id'] not in servers:
+      log.info(f"Skipping {default['id']}.")
       continue
 
     log.info("")
 
     x_LastUpdateError = None
 
-    about_new = {}
+    new = {}
     try:
-      about_new = get(about_default['x_url'] + '/about', timeout=timeout, log=log)
+      kwargs = {
+        "timeout": timeout,
+        "retries": retries,
+        "log": log
+      }
+      new = hapimeta.get(default['x_url'] + '/about', **kwargs)
     except Exception as e:
       x_LastUpdateError = str(e)
 
-    code = utilrsw.get_path(about_new, ["status", "code"])
+    code = utilrsw.get_path(new, ["status", "code"])
     if code is not None and int(code) != 1200:
-      about_new = {}
-      msg = f"{about_default['x_url']}/about returned status {about_new['status']}."
+      status = new.get('status')
+      new = {}
+      msg = f"{default['x_url']}/about returned status {status}."
       log.info(msg)
       x_LastUpdateError = msg
 
-    about_last_dict = utilrsw.array_to_dict(abouts_last, key='x_url')
-    if about_default['x_url'] not in about_last_dict:
-      log.info(f"New server found in {abouts_last_fname}: {about_default['x_url']}")
-    about_last = about_last_dict.get(about_default['x_url'], {})
+    if default['x_url'] not in lasts_dict:
+      log.info(f"New server found in {lasts_fname}: {default['x_url']}")
+    last = lasts_dict.get(default['x_url'], {})
 
-    if simulate and 'contact' in about_last:
+    if simulate and 'contact' in last:
       # Simulate server having contact field that differs from the last about
       # generated based on default, last, and new.
-      about_new['contact'] = about_last['contact'] + "x"
+      new['contact'] = last['contact'] + "x"
 
     if simulate:
       # Simulate a default being updated.
       import random
-      about_default['title'] = f"{about_last['title']}{random.random()}"
+      default['title'] = f"{last['title']}{random.random()}"
 
     for key in keys_added:
-      if key in about_last:
-        del about_last[key]
+      if key in last:
+        del last[key]
 
-    # Merge abouts. _new overrides _last, which overrides _default.
+    kwargs = {
+      'logger': log,
+      'logger_indent': '    '
+    }
     log.info("  Merging default about with last about")
-    about_updated = merge_dicts(about_default, about_last, 'default about', 'last about')
+    names = ['default about', 'last about']
+    about_updated, _ = utilrsw.merge_dicts(default, last, *names, **kwargs)
 
     log.info("  Merging result of last merge with new about to create updated about")
-    about_updated = merge_dicts(about_updated, about_new, 'updated about', 'new about')
+    names = ['updated about', 'new about']
+    about_updated, _ = utilrsw.merge_dicts(about_updated, new, *names, **kwargs)
 
     about_updated['x_LastUpdateAttempt'] = utilrsw.time.utc_now()
 
@@ -148,7 +134,7 @@ def update(abouts_last_fname, abouts_default_fname):
       about_updated['x_LastUpdateError'] = x_LastUpdateError
 
     if len(about_updated) != 0:
-      diff = equivalent_dicts(about_last, about_updated, ignore=keys_added)
+      diff = _equivalent_dicts(last, about_updated, ignore=keys_added)
       if diff:
         msg = "Change found between updated and last about for "
         msg += f"{about_updated['x_url']}: {diff}"
@@ -161,14 +147,15 @@ def update(abouts_last_fname, abouts_default_fname):
   return abouts_updated
 
 
-def write_legacy():
+def _write_legacy():
 
   def to_string(abouts, style='simple'):
     lines = ""
     for about in abouts:
+
       for key in ['title', 'id', 'contact', 'contactID']:
         if key not in about:
-          abouts[key] = ''
+          about[key] = ''
 
       if style == 'simple':
         lines += f"{about['x_url']}\n"
@@ -202,7 +189,9 @@ def write_legacy():
   utilrsw.write(fname, abouts_all_str)
 
 
-def write(abouts, fname, legacy=False):
+def _write(abouts, fname):
+
+  import os
 
   # Update repo file
   log.info(f"Writing {fname}")
@@ -210,24 +199,11 @@ def write(abouts, fname, legacy=False):
 
   # Update file that is copied to https://hapi-server.org/meta/
   fname = os.path.basename(fname)
-  fname = os.path.join(data_dir, fname)
+  fname = os.path.join(hapimeta.data_dir, fname)
   log.info(f"Writing {fname}")
   utilrsw.write(fname, abouts)
 
 
-script_info = utilrsw.script_info()
-if not os.path.exists(script_info['path']):
-  log.error(f"The directory {script_info['dir']} does not have a subdir 'servers'.")
-  log.error("Create it by cloning https://github.com/hapi-server/servers.")
-  exit(1)
-
-write_legacy()
-
-for fname in fnames:
-  abouts_last_fname = f'servers/abouts{fname}.json'
-  abouts_default_fname = f'servers/defaults/abouts{fname}.json'
-
-  abouts_updated = update(abouts_last_fname, abouts_default_fname)
-
-  write(abouts_updated, abouts_last_fname, legacy=True)
-
+if __name__ == "__main__":
+  cfg = hapimeta.config('about')
+  abouts(cfg)
