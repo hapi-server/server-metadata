@@ -9,8 +9,8 @@ HAPI = Namespace("http://hapi.org/rdf/")
 import hapimeta
 log = hapimeta.logger('relations')
 
-#debug_observatory = None
-debug_observatory = 'aae'
+debug_observatory = None
+#debug_observatory = 'aae'
 
 
 def relations():
