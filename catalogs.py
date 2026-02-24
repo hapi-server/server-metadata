@@ -2,7 +2,7 @@ import os
 import utilrsw
 from hapimeta import get, logger, data_dir, cli
 
-debug        = False
+debug        = True
 servers_only = cli() # None to get all servers; otherwise list of server ids.
 max_infos    = None # None to get all infos. Use small number to test code.
 timeout      = 60   # Set to small value to force failures.
@@ -169,13 +169,14 @@ def read_abouts(servers_repo, about_files):
 parts = {}
 log.info(40*"-")
 log.info("Reading abouts.")
-abouts = read_abouts(servers_repo, files['abouts'])
 log.info(40*"-")
+abouts = read_abouts(servers_repo, files['abouts'])
 
 for endpoint in ['catalog', 'capabilities']:
-  log.info(f"{40*"-"}\nStarting /{endpoint} requests\n{40*"-"}.")
+  log.info(40*"-")
+  log.info(f"Starting /{endpoint} requests")
+  log.info(40*"-")
   parts[endpoint] = get_endpoints(abouts, endpoint, servers_only=servers_only)
-  log.info(f"{40*"-"}\nStarting /{endpoint} requests\n{40*"-"}.")
 
 catalogs = []
 for about in abouts:
@@ -185,10 +186,7 @@ for about in abouts:
   catalog = {'about': about}
   for endpoint in ['catalog', 'capabilities']:
       if server_id in parts[endpoint]:
-        print(f"Adding {endpoint}")
-        print(catalog.keys())
         catalog[endpoint] = parts[endpoint][server_id]
-        print(catalog.keys())
   catalogs.append(catalog)
 
 try:
@@ -240,4 +238,3 @@ for file in ['catalogs_all', 'catalogs']:
   except Exception as e:
     log.error(f"Error writing {file_pkl}: {e}. Exiting with code 1.")
     exit(1)
-
