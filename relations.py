@@ -1,4 +1,4 @@
-# Usage: python intermagnet.py
+# Usage: python relations.py
 
 from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import RDF, DCAT, DCTERMS
@@ -9,8 +9,8 @@ HAPI = Namespace("http://hapi.org/rdf/")
 import hapimeta
 log = hapimeta.logger('relations')
 
-debug_observatory = None
-#debug_observatory = 'aae'
+#debug_observatory = None
+debug_observatory = 'aae'
 
 
 def relations():
@@ -36,7 +36,7 @@ def relations():
   _definitions(g, dataset_ids, catalog)
   _cadence_relations(g, observatories)
   _quality_relations(g, observatories)
-  _frame_relations(g, observatories)
+  _frame_relations(g, observatories, catalog)
 
   # Write the output files, in RDF/TTL and JSON-LD
   _write(g)
@@ -147,7 +147,7 @@ def _definitions(g, dataset_ids, catalog):
     for parameter in catalog[dataset_id]['parameters']:
       # the parameter object must be a URI I propose to compose it as follows:
       # ex: https://imag-data.bgs.ac.uk/GIN_V1/hapi/info?dataset=aae/reported/PT1S/native#Field_Magnitude
-      uri_parameter = URIRef(f"{str(uri_dataset)}#{parameter}")
+      uri_parameter = URIRef(f"{g.base}/{str(uri_dataset)}#{parameter}")
       g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
 
 
@@ -183,6 +183,7 @@ def _quality_relations(g, dataset_ids_parts):
       base_quality = 'quasi-def'
     else:
       base_quality = dataset_ids_parts[observatory]['qualities'][0]
+
     sub_qualities = set(qualities) - {base_quality}
     for quality in sub_qualities:
       for cadence in dataset_ids_parts[observatory]['cadences']:
@@ -194,7 +195,7 @@ def _quality_relations(g, dataset_ids_parts):
           # g.add((uri1, PROV.wasDerivedFrom, uri2))
 
 
-def _frame_relations(g, dataset_ids_parts):
+def _frame_relations(g, dataset_ids_parts, catalog):
 
   base_frame = 'native'
   for observatory in dataset_ids_parts.keys():
@@ -206,8 +207,19 @@ def _frame_relations(g, dataset_ids_parts):
       for cadence in dataset_ids_parts[observatory]['cadences']:
         sub_frames = set(frames) - {base_frame}
         for frame in sub_frames:
-          uri1 = URIRef(f"{g.base}/info?dataset={observatory}/{quality}/{cadence}/{frame}")
-          uri2 = URIRef(f"{g.base}/info?dataset={observatory}/{quality}/{cadence}/{base_frame}")
+          dataset_id_1 = f"{observatory}/{quality}/{cadence}/{frame}"
+          dataset_id_2 = f"{observatory}/{quality}/{cadence}/{base_frame}"
+
+          if dataset_id_1 not in catalog or dataset_id_2 not in catalog:
+            continue
+
+          if 'Field_Vector' not in catalog[dataset_id_1]['parameters']:
+            continue
+          if 'Field_Vector' not in catalog[dataset_id_2]['parameters']:
+            continue
+
+          uri1 = URIRef(f"{g.base}/info?dataset={dataset_id_1}#Field_Vector")
+          uri2 = URIRef(f"{g.base}/info?dataset={dataset_id_2}#Field_Vector")
           g.add((uri1, HAPI.isReferenceFrameTransformOf, uri2))
 
 
