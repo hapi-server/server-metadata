@@ -108,6 +108,9 @@ def _write(g):
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
   basename = os.path.join(out_dir, "INTERMAGNET")
+  if debug_observatory is not None:
+    basename += f"-{debug_observatory}"
+
   g.serialize(destination=f"{basename}.ttl", format='turtle')
   g.serialize(destination=f"{basename}.jsonld", format='json-ld')
 
