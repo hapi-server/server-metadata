@@ -3,7 +3,7 @@ import utilrsw
 
 from hapimeta import cli, logger
 
-log = utilrsw.logger('spase')
+log = logger('spase')
 
 all_file = 'data/catalogs-all.pkl'
 servers = utilrsw.read(all_file)

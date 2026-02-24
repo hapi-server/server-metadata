@@ -1,4 +1,4 @@
-__all__ = ['version', 'get', 'logger_kwargs', 'data_dir']
+__all__ = ['version', 'config', 'data_dir', 'get', 'logger_kwargs']
 
 def version():
   import os
