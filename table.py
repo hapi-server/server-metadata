@@ -46,7 +46,7 @@ def compute_rows(all_file, servers=None, omits=[]):
     if servers_keep is not None and server not in servers_keep:
       continue
 
-    catalog = servers[server]['catalog']
+    catalog = servers[server]['catalog']['catalog']
     for dataset in catalog:
       dataset['server'] = server
       dataset['dataset'] = dataset['id']
