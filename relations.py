@@ -38,11 +38,12 @@ def relations():
   _provides(g, dataset_ids)
   _definitions(g, dataset_ids, catalog)
 
-  _cadence_relations(g, observatories, server_id)
+  _cadence_relations(g, observatories, catalog, server_id)
 
   if server_id == 'INTERMAGNET':
     _quality_relations(g, observatories)
-  #_frame_relations(g, observatories, catalog)
+
+  _frame_relations(g, observatories, catalog, server_id)
 
   # Write the output files, in RDF/TTL and JSON-LD
   _write(g, server_id)
@@ -169,7 +170,8 @@ def _definitions(g, dataset_ids, catalog):
       uri_parameter = URIRef(f"{g.base}/{str(uri_dataset)}#{parameter}")
       g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
 
-def _cadence_relations(g, dataset_ids_parts, server_id):
+
+def _cadence_relations(g, dataset_ids_parts, catalog, server_id):
   # Include the cadence information for each Dataset
   # NB: use new property name of hapi:resamplingMethod (see base.ttl)
   def min_cadence(cadences):
@@ -188,9 +190,11 @@ def _cadence_relations(g, dataset_ids_parts, server_id):
   for observatory in dataset_ids_parts.keys():
     cadences = dataset_ids_parts[observatory]['cadences']
     base_cadence = min_cadence(cadences)
+
     if base_cadence is None:
       log.error(f"No cadences found for observatory '{observatory}'.")
       continue
+
     for quality in dataset_ids_parts[observatory]['qualities']:
       sub_cadences = set(cadences) - {base_cadence}
       for cadence in sub_cadences:
@@ -201,6 +205,10 @@ def _cadence_relations(g, dataset_ids_parts, server_id):
           if server_id == 'WDC':
             id_resample = f"{observatory}/{cadence}/{frame}"
             id_source = f"{observatory}/{base_cadence}/{frame}"
+
+          if (id_resample not in catalog) or (id_source not in catalog):
+            log.warning(f"Dataset ID '{id_resample}' or '{id_source}' not found in catalog.")
+            continue
 
           uri_resample = URIRef(f"{g.base}/info?dataset={id_resample}")
           uri_source = URIRef(f"{g.base}/info?dataset={id_source}")
@@ -232,22 +240,36 @@ def _quality_relations(g, dataset_ids_parts):
           # g.add((uri1, PROV.wasDerivedFrom, uri2))
 
 
-def _frame_relations(g, dataset_ids_parts, catalog):
+def _frame_relations(g, dataset_ids_parts, catalog, server_id):
 
-  base_frame = 'native'
+  if server_id == 'INTERMAGNET':
+    base_frame = 'native'
+  if server_id == 'WDC':
+    base_frame = 'original'
+
   for observatory in dataset_ids_parts.keys():
-    frames = dataset_ids_parts[observatory]['frames']
+    frames = dataset_ids_parts[observatory]['frames'].copy()
+    if server_id == 'WDC':
+      if 'k' in frames:
+        frames.remove('k')
+
     if base_frame not in frames:
       log.error(f"Base frame '{base_frame}' not found for observatory '{observatory}'.")
       continue
+
     for quality in dataset_ids_parts[observatory]['qualities']:
       for cadence in dataset_ids_parts[observatory]['cadences']:
         sub_frames = set(frames) - {base_frame}
         for frame in sub_frames:
-          dataset_id_1 = f"{observatory}/{quality}/{cadence}/{frame}"
-          dataset_id_2 = f"{observatory}/{quality}/{cadence}/{base_frame}"
+          if server_id == 'INTERMAGNET':
+            dataset_id_1 = f"{observatory}/{quality}/{cadence}/{frame}"
+            dataset_id_2 = f"{observatory}/{quality}/{cadence}/{base_frame}"
+          if server_id == 'WDC':
+            dataset_id_1 = f"{observatory}/{cadence}/{frame}"
+            dataset_id_2 = f"{observatory}/{cadence}/{base_frame}"
 
-          if dataset_id_1 not in catalog or dataset_id_2 not in catalog:
+          if (dataset_id_1 not in catalog) or (dataset_id_2 not in catalog):
+            log.warning(f"Dataset ID '{dataset_id_1}' or '{dataset_id_2}' not found in catalog.")
             continue
 
           if 'Field_Vector' not in catalog[dataset_id_1]['parameters']:
