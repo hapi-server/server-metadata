@@ -7,10 +7,10 @@ a.renderLink {
 	--data-new-tab-url: url(https://hapi-server.org/servers/css/images/open_in_new_24dp_000000_FILL0_wght400_GRAD0_opsz24.svg);
 }
 
-.searchConstraints {
-    border: 1px solid rgb(200, 200, 200);
-    padding-left: 2px;
-    padding-right: 2px;
+.timeSearchConstraints {
+	border: 1px solid rgb(200, 200, 200);
+	padding-left: 2px;
+	padding-right: 2px;
 }
 
 .open-in-new-tab {

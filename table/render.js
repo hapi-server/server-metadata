@@ -36,8 +36,12 @@ function searchLink (columnName, columnString, constraint) {
   const link = `<a href="${url}" ${attrs}>${constraintIcon}</a>`
   return link
 }
-function combineLinks (columnString, links, split) {
-  return `${columnString}${split}<span class="searchConstraints"><nobr>${links.join('')}</nobr></span>`
+
+function combineLinks (columnString, links, split, wrapperClass) {
+  if (!wrapperClass) {
+    wrapperClass = ''
+  }
+  return `${columnString}${split}<span class="${wrapperClass}"><nobr>${links.join('')}</nobr></span>`
 }
 
 renderFunctions.renderAll = function (columnName, config) {
@@ -50,6 +54,7 @@ renderFunctions.renderAll = function (columnName, config) {
                               columnName === 'length'
     const links = []
     let split = ''
+    let wrapperClass = ''
     if (columnName === 'server') {
       const q = { server: columnString }
       links.push(viewLink(q, columnString))
@@ -69,6 +74,7 @@ renderFunctions.renderAll = function (columnName, config) {
       }
       links.push(viewLink(q, columnString))
     } else if (constrainedSearch) {
+      let wrapperClass = 'timeSearchConstraints'
       split = '<br>'
       if (columnString !== '') {
         links.push(searchLink(columnName, columnString, '='))
@@ -85,7 +91,7 @@ renderFunctions.renderAll = function (columnName, config) {
       columnString = `<a href="${url}" title="${url}" target="_blank">${shortID}</a>`
     }
     if (links.length > 0) {
-      columnString = combineLinks(columnString, links, split)
+      columnString = combineLinks(columnString, links, split, wrapperClass)
     }
     return columnString
   }
