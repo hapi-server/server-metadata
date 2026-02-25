@@ -1,7 +1,7 @@
 import json
 from setuptools import setup, find_packages
 
-install_requires = ["hapiplot", "hapiclient", "deepdiff", "GitPython"]
+install_requires = ["hapiplot", "hapiclient", "deepdiff", "GitPython", "isodate"]
 
 try:
   # Will work if utilrsw was already installed, for example via pip install -e .

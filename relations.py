@@ -10,20 +10,23 @@ import hapimeta
 log = hapimeta.logger('relations')
 
 debug_observatory = None
-#debug_observatory = 'aae'
-
+debug_observatory = 'aae'
 
 def relations():
+  server_id = 'INTERMAGNET'
   url = "https://imag-data.bgs.ac.uk/GIN_V1/hapi"
 
-  catalog = _catalog()
+  server_id = 'WDC'
+  url = 'https://wdcapi.bgs.ac.uk/hapi/catalog'
+
+  catalog = _catalog(server_id)
 
   dataset_ids = catalog.keys()
   if debug_observatory is not None:
     # For debugging, keep only IDs that start with aae
     dataset_ids = [id for id in catalog.keys() if id.startswith(debug_observatory)]
 
-  observatories = _observatories(dataset_ids)
+  observatories = _observatories(dataset_ids, server_id)
 
   if debug_observatory is not None:
     import utilrsw
@@ -34,18 +37,21 @@ def relations():
   _head(g, url)
   _provides(g, dataset_ids)
   _definitions(g, dataset_ids, catalog)
-  _cadence_relations(g, observatories)
-  _quality_relations(g, observatories)
-  _frame_relations(g, observatories, catalog)
+
+  _cadence_relations(g, observatories, server_id)
+
+  if server_id == 'INTERMAGNET':
+    _quality_relations(g, observatories)
+  #_frame_relations(g, observatories, catalog)
 
   # Write the output files, in RDF/TTL and JSON-LD
-  _write(g)
+  _write(g, server_id)
 
 
-def _catalog():
+def _catalog(server_id):
   import os
   import utilrsw
-  catalog_file = os.path.join(hapimeta.data_dir, 'catalogs', 'INTERMAGNET-all.json')
+  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
   catalog = utilrsw.read(catalog_file)
   catalog = utilrsw.array_to_dict(catalog, 'id')
 
@@ -65,7 +71,7 @@ def _catalog():
   return catalog
 
 
-def _observatories(dataset_ids):
+def _observatories(dataset_ids, server_id):
   """
   Convert IDs in the form 'observatory/quality/cadence/frame' into a
   dictionary grouped by observatory:
@@ -83,11 +89,21 @@ def _observatories(dataset_ids):
   grouped = {}
   for dataset_id in dataset_ids:
     parts = dataset_id.split('/')
-    if len(parts) != 4:
-      print(f"Skipping dataset ID with missing part: {dataset_id}")
-      continue
+    if server_id == 'INTERMAGNET':
+      if len(parts) != 4:
+        print(f"Skipping dataset ID with missing part: {dataset_id}")
+        continue
 
-    observatory, quality, cadence, frame = parts
+      observatory, quality, cadence, frame = parts
+
+    if server_id == 'WDC':
+      if len(parts) != 3:
+        print(f"Skipping dataset ID with missing part: {dataset_id}")
+        continue
+
+      observatory, cadence, frame = parts
+      quality = None
+
     if observatory not in grouped:
       grouped[observatory] = {
         'qualities': [],
@@ -102,12 +118,12 @@ def _observatories(dataset_ids):
   return grouped
 
 
-def _write(g):
+def _write(g, server_id):
   import os
   out_dir = os.path.join(hapimeta.data_dir, 'relations')
   if not os.path.exists(out_dir):
     os.makedirs(out_dir)
-  basename = os.path.join(out_dir, "INTERMAGNET")
+  basename = os.path.join(out_dir, server_id)
   if debug_observatory is not None:
     basename += f"-{debug_observatory}"
 
@@ -153,23 +169,41 @@ def _definitions(g, dataset_ids, catalog):
       uri_parameter = URIRef(f"{g.base}/{str(uri_dataset)}#{parameter}")
       g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
 
-
-def _cadence_relations(g, dataset_ids_parts):
+def _cadence_relations(g, dataset_ids_parts, server_id):
   # Include the cadence information for each Dataset
   # NB: use new property name of hapi:resamplingMethod (see base.ttl)
+  def min_cadence(cadences):
+    import datetime
+    import utilrsw
 
-  base_cadence = 'PT1S'
+    if not cadences:
+      return None
+
+    start = datetime.datetime(2020, 1, 1)
+    def key(cadence):
+      return utilrsw.time.isoduration_to_timedelta(cadence, start=start)
+
+    return min(cadences, key=key)
+
   for observatory in dataset_ids_parts.keys():
     cadences = dataset_ids_parts[observatory]['cadences']
-    if base_cadence not in cadences:
-      log.error(f"Base cadence '{base_cadence}' not found for observatory '{observatory}'.")
+    base_cadence = min_cadence(cadences)
+    if base_cadence is None:
+      log.error(f"No cadences found for observatory '{observatory}'.")
       continue
     for quality in dataset_ids_parts[observatory]['qualities']:
       sub_cadences = set(cadences) - {base_cadence}
       for cadence in sub_cadences:
         for frame in dataset_ids_parts[observatory]['frames']:
-          uri_resample = URIRef(f"{g.base}/info?dataset={observatory}/{quality}/{cadence}/{frame}")
-          uri_source = URIRef(f"{g.base}/info?dataset={observatory}/{quality}/{base_cadence}/{frame}")
+          if server_id == 'INTERMAGNET':
+            id_resample = f"{observatory}/{quality}/{cadence}/{frame}"
+            id_source = f"{observatory}/{quality}/{base_cadence}/{frame}"
+          if server_id == 'WDC':
+            id_resample = f"{observatory}/{cadence}/{frame}"
+            id_source = f"{observatory}/{base_cadence}/{frame}"
+
+          uri_resample = URIRef(f"{g.base}/info?dataset={id_resample}")
+          uri_source = URIRef(f"{g.base}/info?dataset={id_source}")
           g.add((uri_resample, HAPI.resamplingMethod, HAPI.average))
           g.add((uri_resample, HAPI.isResampledOf, uri_source))
 

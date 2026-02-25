@@ -149,7 +149,7 @@ def get_infos(cid, catalog, max_infos=None):
     n = n + 1
 
   try:
-    fname = f"{data_dir}/catalogs/{cid}-all.json"
+    fname = f"{data_dir}/catalog/{cid}-all.json"
     log.info(f"  Writing {fname}")
     utilrsw.write(fname, catalog['catalog'])
   except Exception as e:
