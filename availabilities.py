@@ -310,7 +310,7 @@ def html(files, server_dir):
     write(fname, html_content_png)
 
 
-def process_server(server, catalogs_all):
+def process_server(server, catalog_all):
 
   def extract_time(info, key):
     if key not in info:
@@ -338,15 +338,24 @@ def process_server(server, catalogs_all):
     return info[key], dt
 
   lines = []
-  datasets = []
+  ids = []
   starts = []
   stops = []
-  log.info(f"{len(catalogs_all['catalog'])} datasets")
-  for dataset in catalogs_all['catalog']:
 
+  datasets = utilrsw.get_path(catalog_all, 'catalog/catalog', sep='/')
+  if datasets is None:
+    log.info(f"{server}: No datasets found in catalog")
+    return None
+
+  log.info(f"{server}: {len(datasets)} datasets")
+  for dataset in datasets:
+
+    log.info(f"  Processing dataset: {dataset['id']}")
+
+    if 'id' not in dataset:
+      log.error(f'    No "id" key in dataset = {dataset}')
     if 'info' not in dataset:
-      log.error(f"{server} {dataset['id']}: No 'info' key")
-      print(server, dataset['id'], None, None)
+      log.error(f"    No 'info' key for dataset with id = {dataset['id']}")
       continue
 
     info = dataset['info']
@@ -356,24 +365,28 @@ def process_server(server, catalogs_all):
 
     if startDate_datetime is not None and stopDate_datetime is not None:
       line_str = [server, dataset["id"], startDate, stopDate]
-      log.info(", ".join(line_str))
+      log.info("    " + ", ".join(line_str))
       line = [server, dataset["id"], startDate_datetime, stopDate_datetime]
       lines.append(line)
       stops.append(stopDate_datetime)
       starts.append(startDate_datetime)
-      datasets.append(dataset['id'])
+      ids.append(dataset['id'])
 
   df = pandas.DataFrame(lines, columns=["server", "dataset", "start", "stop"])
 
   server_dir = os.path.join(base_dir, server)
   fname = os.path.join(server_dir, f'{server}.csv')
   write(fname, df)
+  if len(ids) == 0:
+    log.info(f"{server}: No datasets with valid startDate and stopDate found in catalog")
+    return df
 
-  #log.info(f"Plotting availability for {server}")
-  server_url = catalogs_all['about']['x_url']
-  x_LastUpdate = catalogs_all['x_LastUpdate']
-  title = f"{server} | {server_url} | {len(datasets)} datasets | {x_LastUpdate}"
-  files = plot(server, server_url, server_dir, title, datasets, starts, stops,
+  log.info("Plotting availabilities")
+
+  server_url = catalog_all['about']['x_url']
+  x_LastUpdate = catalog_all['catalog']['x_LastUpdate']
+  title = f"{server} | {server_url} | {len(ids)} datasets | {x_LastUpdate}"
+  files = plot(server, server_url, server_dir, title, ids, starts, stops,
                lines_per_plot=lines_per_plot,
                fig_width=fig_width, fig_height=fig_height)
 
@@ -408,6 +421,7 @@ dfs = []
 for server in servers:
   df = process_server(server, catalogs_all[server])
   dfs.append(df)
+
 dfs = pandas.concat(dfs, ignore_index=True)
 write(f"{base_dir}/availabilities.pkl", df)
 write(f"{base_dir}/availabilities.csv", df)

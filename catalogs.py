@@ -9,6 +9,7 @@ timeout      = 60   # Set to small value to force failures.
 max_workers  = 10   # Number of threads to use for parallel processing.
 
 if debug:
+  # Only get info response from first dataset
   max_infos = 1
 
 servers_repo = os.path.join(data_dir, '..', 'servers')
@@ -20,7 +21,7 @@ files = {
 
 log = logger('catalogs')
 
-def get_endpoints(abouts, endpoint, servers_only=None):
+def get_endpoint(abouts, endpoint, servers_only=None):
 
   results = {}
   for about in abouts:
@@ -61,7 +62,7 @@ def get_endpoints(abouts, endpoint, servers_only=None):
 
     fname = f"{data_dir}/{endpoint}/{server_id}.json"
     if 'x_LastUpdateError' in result:
-      log.info(f"  Attempting to read last successful /{endpoint} response.")
+      log.info(f"  Attempting to read last successful /{endpoint} response from {fname}")
       try:
         result_last = utilrsw.read(fname)
         log.info(f"  Read last successful /{endpoint} response.")
@@ -166,49 +167,121 @@ def read_abouts(servers_repo, about_files):
       exit(1)
   return sum(abouts, [])  # Flatten list of lists.
 
-parts = {}
+
+def write(file_name, data, pkl=False):
+  try:
+    utilrsw.write(file_name, data, logger=log)
+  except Exception as e:
+    log.error(f"Error writing {file_name}: {e}. Exiting with code 1.")
+    exit(1)
+
+  if not pkl:
+    return
+
+  file_name = file_name.replace('.json', '.pkl')
+  try:
+    utilrsw.write(file_name, catalogs, logger=log)
+  except Exception as e:
+    log.error(f"Error writing {file_name}: {e}. Exiting with code 1.")
+    exit(1)
+
+
+endpoints = {}
 log.info(40*"-")
 log.info("Reading abouts.")
 log.info(40*"-")
 abouts = read_abouts(servers_repo, files['abouts'])
 
+"""
+Create endpoints dict of form
+endpoints
+  about
+    server_id1
+      /about response
+    server_id2
+      /about response
+"""
+endpoints['about'] = utilrsw.array_to_dict(abouts, 'id')
+
+"""
+Add to endpoints dict so it has form:
+endpoints
+  about
+    server_id1
+      /about response
+    server_id2
+      /about response
+    ...
+  catalog
+    server_id1
+      /catalog response
+    server_id2
+      /catalog response
+    ...
+  capabilities
+    server_id1
+      /capabilities response
+    server_id2
+      /capabilities response
+    ...
+"""
 for endpoint in ['catalog', 'capabilities']:
   log.info(40*"-")
   log.info(f"Starting /{endpoint} requests")
   log.info(40*"-")
-  parts[endpoint] = get_endpoints(abouts, endpoint, servers_only=servers_only)
+  endpoints[endpoint] = get_endpoint(abouts, endpoint, servers_only=servers_only)
 
-catalogs = []
+
+"""
+Create catalogs dict of form
+  server_id1
+    about
+      /about response
+    catalog
+      /catalog response which has form
+      catalog: [
+        [dataset_id1, title1, info1]
+        ...
+      ]
+    capabilities
+      /capabilities response
+  server_id2
+    ...
+"""
+
+catalogs = {}
 for about in abouts:
   server_id = about['id']
   if servers_only is not None and server_id not in servers_only:
     continue
   catalog = {'about': about}
   for endpoint in ['catalog', 'capabilities']:
-      if server_id in parts[endpoint]:
-        catalog[endpoint] = parts[endpoint][server_id]
-  catalogs.append(catalog)
+      if server_id in endpoints[endpoint]:
+        catalog[endpoint] = endpoints[endpoint][server_id]
+  catalogs[server_id] = catalog
 
-try:
-  utilrsw.write(files['catalogs'], catalogs, logger=log)
-except Exception as e:
-  log.error(f"Error writing {files['catalogs']}: {e}. Exiting with code 1.")
-  exit(1)
+write(files['catalogs'], catalogs, pkl=False)
 
 log.info(40*"-")
 log.info("Starting /info requests.")
 log.info(40*"-")
-# catalog['catalog'] is an array of dataset objects with at least a key of
-# 'id' (dataset id). get_infos() adds an 'info' key to each dataset object.
+"""
+Insert into the catalog nodes the /info responses so that the structure is:
+catalogs
+  server_id1
+    catalog
+      catalog: [[dataset_id1, title1, info1], ...
+  ...
+"""
 if max_workers == 1:
-  for cid, catalog in catalogs.items():
-    get_infos(cid, catalog, max_infos=max_infos)
+  for server_id in catalogs.keys():
+    get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
 else:
   # Build infos for each server in parallel.
   # (/info requests for a each server are sequential.)
   from concurrent.futures import ThreadPoolExecutor
-  def call(cid):
-    get_infos(cid, catalogs[cid], max_infos=max_infos)
+  def call(server_id):
+    get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
     pool.map(call, catalogs.keys())
 
@@ -216,25 +289,4 @@ log.info(40*"-")
 log.info("Finished /info requests.")
 log.info(40*"-")
 
-for file in ['catalogs_all', 'catalogs']:
-
-  if file == 'catalogs':
-    for server in catalogs.keys():
-      for dataset in catalogs[server]['catalog']:
-        if 'info' in dataset:
-          del dataset['info']
-        if 'about' in dataset:
-          del dataset['about']
-
-  try:
-    utilrsw.write(files[file], catalogs, logger=log)
-  except Exception as e:
-    log.error(f"Error writing {files[file]}: {e}. Exiting with code 1.")
-    exit(1)
-
-  file_pkl = files[file].replace('.json', '.pkl')
-  try:
-    utilrsw.write(file_pkl, catalogs, logger=log)
-  except Exception as e:
-    log.error(f"Error writing {file_pkl}: {e}. Exiting with code 1.")
-    exit(1)
+write(files['catalogs_all'], catalogs, pkl=True)
