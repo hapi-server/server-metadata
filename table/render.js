@@ -74,7 +74,7 @@ renderFunctions.renderAll = function (columnName, config) {
       }
       links.push(viewLink(q, columnString))
     } else if (constrainedSearch) {
-      let wrapperClass = 'timeSearchConstraints'
+      wrapperClass = 'timeSearchConstraints'
       split = '<br>'
       if (columnString !== '') {
         links.push(searchLink(columnName, columnString, '='))
