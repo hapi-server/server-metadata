@@ -107,15 +107,16 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
     return f"{server}.{fn}"
 
-  def draw(ax, n, starts, stops, datasets, start_text, max_len=None):
+  def draw(ax, n, lines_per_plot, starts, stops, datasets, start_text, max_len=None):
     gid_bar = f"https://hapi-server.org/servers/#server={server}&dataset={id_strip(datasets[n])}"
     gid_txt = f"https://hapi-server.org/plot/?server={server_url}&dataset={id_strip(datasets[n])}&format=gallery&usecache=true&usedatacache=true&mode=thumb"
 
+    y = lines_per_plot - n
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     color = colors[n % len(colors)]
-    line, = ax.plot([starts[n], stops[n]], [n, n], gid=gid_bar, linewidth=0.5)
+    line, = ax.plot([starts[n], stops[n]], [y, y], gid=gid_bar, linewidth=0.5)
     rect = plt.Rectangle(
-              (starts[n], n - 0.4),
+              (starts[n], y - 0.5),
               stops[n] - starts[n],
               0.8,
               color=color, alpha=1, gid=gid_bar)
@@ -135,10 +136,10 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       'gid': gid_txt,
       'bbox': dict(facecolor='white', alpha=0.5, pad=0, lw=0)
     }
-    ax.text(stops[n], n, label, **text_kwargs)
+    ax.text(stops[n], y, label, **text_kwargs)
     if start_text[n] is not None:
       text_kwargs['horizontalalignment'] = 'right'
-      ax.text(starts[n], n, start_text[n], **text_kwargs)
+      ax.text(starts[n], y, start_text[n], **text_kwargs)
 
   n_plots = math.ceil(len(datasets)/lines_per_plot)
   pad = math.ceil(math.log10(n_plots))
@@ -161,7 +162,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
   fig, ax = newfig()
   for n in range(len(datasets)):
-    draw(ax, n, starts, stops, datasets, start_text, max_len=max_len)
+    draw(ax, n, lines_per_plot, starts, stops, datasets, start_text, max_len=max_len)
 
   config(ax, starts_min, stops_max)
   l, b, w, h = ax.get_position().bounds
@@ -188,7 +189,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
   files = []
   fig, ax = newfig()
   for n in range(len(datasets)):
-    draw(ax, n, starts, stops, datasets, start_text)
+    draw(ax, n, lines_per_plot, starts, stops, datasets, start_text)
     if (n + 1) % lines_per_plot == 0:
       fn = fn + 1
       fn_padded = f"{fn:0{pad}d}"
@@ -377,6 +378,7 @@ def process_server(server, catalog_all):
   server_dir = os.path.join(base_dir, server)
   fname = os.path.join(server_dir, f'{server}.csv')
   write(fname, df)
+
   if len(ids) == 0:
     log.info(f"{server}: No datasets with valid startDate and stopDate found in catalog")
     return df
@@ -386,6 +388,7 @@ def process_server(server, catalog_all):
   server_url = catalog_all['about']['x_url']
   x_LastUpdate = catalog_all['catalog']['x_LastUpdate']
   title = f"{server} | {server_url} | {len(ids)} datasets | {x_LastUpdate}"
+
   files = plot(server, server_url, server_dir, title, ids, starts, stops,
                lines_per_plot=lines_per_plot,
                fig_width=fig_width, fig_height=fig_height)
