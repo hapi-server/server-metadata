@@ -20,7 +20,6 @@ echo $(date +%Y-%m-%d).log > data/lastrun.txt
 #pip install -e .
 
 python abouts.py
-
 python catalogs.py
 python availabilities.py
 python table.py
