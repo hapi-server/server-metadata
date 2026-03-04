@@ -18,22 +18,28 @@ def reorder_keys(d):
     newd[k] = v
   return newd
 
+
 def format_bins(bins):
   def ellipsis(arr):
     if len(arr) > 5:
       return arr[0:2] + ['...'] + arr[-2:]
     return arr
+
   bins_new = {}
   for idx, bin in enumerate(bins):
     for key in bin:
       key_new = f"bins[{idx}]/{key}"
+      print(bin)
       if isinstance(bin[key], list):
         bins_new[key_new] = ellipsis(bin[key])
       else:
         bins_new[key_new] = bin[key]
+
   return bins_new
 
+
 def compute_rows(all_file, servers=None, omits=[]):
+
   servers_keep = servers
   servers = utilrsw.read(all_file)
 
@@ -46,7 +52,11 @@ def compute_rows(all_file, servers=None, omits=[]):
     if servers_keep is not None and server not in servers_keep:
       continue
 
-    catalog = servers[server]['catalog']['catalog']
+    catalog = utilrsw.get_path(servers[server], 'catalog/catalog', sep='/')
+    if catalog is None:
+      log.error(f"Could not find catalog for server: {server}. Skipping server.")
+      continue
+
     for dataset in catalog:
       dataset['server'] = server
       dataset['dataset'] = dataset['id']
@@ -58,25 +68,35 @@ def compute_rows(all_file, servers=None, omits=[]):
         if isinstance(dataset['info']['additionalMetadata'], dict):
           continue
 
-      if utilrsw.get_path(dataset, ['info', 'parameters']) is not None:
-        dataset['x_nParams'] = len(dataset['info']['parameters'])
-        for parameter in dataset['info']['parameters']:
-          parameter['parameter'] = parameter['name']
-          del parameter['name']
-          if 'units' in parameter and parameter['units'] is None:
-            parameter['units'] = ''
-          parameter = {
-            "server": server,
-            "dataset": dataset['dataset'],
-            "startDate": utilrsw.get_path(dataset, 'info.startDate', ''),
-            "stopDate": utilrsw.get_path(dataset, 'info.stopDate', ''),
-            "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
-            **parameter
-          }
-          if 'bins' in parameter:
-            parameter['bins'] = format_bins(parameter['bins'])
-          row = utilrsw.flatten_dicts(parameter, simplify=True)
-          rows['parameter'].append(reorder_keys(row))
+      parameters = utilrsw.get_path(dataset, ['info', 'parameters'])
+      if parameters is None:
+        log.error(f"Could not find parameters for dataset: {server}/{dataset['dataset']}. Skipping dataset.")
+        continue
+
+      dataset['x_nParams'] = len(parameters)
+      for parameter in parameters:
+        parameter['parameter'] = parameter['name']
+        del parameter['name']
+        if 'units' in parameter and parameter['units'] is None:
+          parameter['units'] = ''
+        parameter = {
+          "server": server,
+          "dataset": dataset['dataset'],
+          "startDate": utilrsw.get_path(dataset, 'info.startDate', ''),
+          "stopDate": utilrsw.get_path(dataset, 'info.stopDate', ''),
+          "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
+          **parameter
+        }
+
+        if 'bins' in parameter:
+          if isinstance('bins', list):
+            try:
+              parameter['bins'] = format_bins(parameter['bins'])
+            except Exception as e:
+              log.error(f"Error formatting bins for parameter: {server}/{dataset['dataset']}/{parameter['parameter']}. Error: {e}")
+
+        row = utilrsw.flatten_dicts(parameter, simplify=True)
+        rows['parameter'].append(reorder_keys(row))
 
       row = utilrsw.flatten_dicts(dataset, simplify=True)
       rows['dataset'].append(reorder_keys(row))
