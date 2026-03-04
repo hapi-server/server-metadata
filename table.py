@@ -52,6 +52,8 @@ def compute_rows(all_file, servers=None, omits=[]):
     if servers_keep is not None and server not in servers_keep:
       continue
 
+    log.info(f"Processing server: {server}")
+
     catalog = utilrsw.get_path(servers[server], 'catalog/catalog', sep='/')
     if catalog is None:
       log.error(f"Could not find catalog for server: {server}. Skipping server.")
