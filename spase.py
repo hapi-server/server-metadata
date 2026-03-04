@@ -54,8 +54,20 @@ def add_AccessInformation(Spase, dataset, about, template):
   # TODO: Need to get formats supported from capabilities response.
 
   def script_info():
-    # TODO: Get languages from https://hapi-server.org/servers/?return=script-options
+
     languages = ['IDL', 'Javascript', 'MATLAB', 'Python', 'Autoplot', 'curl', 'wget']
+    try:
+      url = "https://hapi-server.org/servers/?return=script-options"
+      response = utilrsw.net.get_json(url)
+      languages = {}
+      for element in response['data']:
+        language = element.get('label', '')
+        language = language.split('/')[0]
+        languages[language] = True
+      languages = list(languages.keys())
+    except Exception as e:
+      log.warning(f"Unable to get script languages from {url}: {e}")
+
     languages = ', '.join(languages)
     language_formats = []
     for language in languages.split(', '):
@@ -149,6 +161,7 @@ for server in servers:
   catalog = servers[server]['catalog']
   about = servers[server]['about']
   for dataset in catalog:
+
     dataset['server'] = server
     dataset['dataset'] = dataset['id']
 
