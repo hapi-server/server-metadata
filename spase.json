@@ -33,6 +33,11 @@
       }
     }
   ],
+  "formatMap": {
+    "csv": "CSV",
+    "json": "JSON",
+    "binary": "Binary"
+  },
   "hapi2spase": {
     "dataset": {
       "id": "ProviderResourceName",

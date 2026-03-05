@@ -1,0 +1,4 @@
+2026-02-17T12:46:11.332519Z INFO  spase Processing server: TestData2.0
+2026-02-17T12:46:11.332903Z INFO  spase   Replacing info from data/catalogs-all.pkl with that in /Users/rweigel/git/hapi/server-metadata/data/infos/TestData2.0/dataset1.json.
+2026-02-17T12:46:11.334936Z INFO  spase   Replacing info from data/catalogs-all.pkl with that in /Users/rweigel/git/hapi/server-metadata/data/infos/TestData2.0/dataset2.json.
+2026-02-17T12:46:11.336798Z INFO  spase   Replacing info from data/catalogs-all.pkl with that in /Users/rweigel/git/hapi/server-metadata/data/infos/TestData2.0/dataset3.json.
