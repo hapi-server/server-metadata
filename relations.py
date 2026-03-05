@@ -10,8 +10,9 @@ import hapimeta
 log = hapimeta.logger('relations')
 
 all = True
-server_id = 'WDC'
-observatory = 'aae'
+if not all:
+  server_id = 'INTERMAGNET'
+  observatory = 'aae'
 
 def relations(server_id, observatory=None):
   if server_id == 'INTERMAGNET':
@@ -28,17 +29,16 @@ def relations(server_id, observatory=None):
     dataset_ids = [id for id in catalog.keys() if id.startswith(observatory)]
 
   observatories = _observatories(dataset_ids, server_id)
-
   if observatory is not None:
     import utilrsw
-    utilrsw.print_dict(observatories)
+    log.info(f"Processing only {server_id}/{observatory}:")
+    utilrsw.print_dict(observatories, indent=2)
 
   g = Graph()
 
   _head(g, url)
   _provides(g, dataset_ids)
   _definitions(g, dataset_ids, catalog)
-
 
   _cadence_relations(g, observatories, catalog, server_id)
 
@@ -54,6 +54,9 @@ def relations(server_id, observatory=None):
 def _catalog(server_id):
   import os
   import utilrsw
+
+  log.info("Reading and preparing catalog.")
+
   catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
   catalog = utilrsw.read(catalog_file)
   catalog = utilrsw.array_to_dict(catalog, 'id')
@@ -238,6 +241,7 @@ def _frame_relations(g, dataset_ids_parts, catalog, server_id):
     frames = dataset_ids_parts[observatory]['frames'].copy()
     if server_id == 'WDC':
       if 'k' in frames:
+        # Datasets ending in /k do not contain the Field_Vector parameter
         frames.remove('k')
 
     if base_frame not in frames:

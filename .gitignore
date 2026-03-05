@@ -4,7 +4,6 @@ __pycache__/
 hapimeta/__pycache__/
 data/
 servers/
-*.log
 *~
 etc/servefs.stderr
 etc/servefs.stdout
