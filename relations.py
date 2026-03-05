@@ -9,6 +9,7 @@ HAPI = Namespace("http://hapi.org/rdf/")
 import hapimeta
 log = hapimeta.logger('relations')
 
+all = True
 server_id = 'WDC'
 observatory = 'aae'
 
@@ -295,4 +296,10 @@ def _write(g, server_id, observatory=None):
 
 
 if __name__ == "__main__":
-  relations(server_id, observatory)
+  if all:
+    relations("INTERMAGNET", "aae")
+    relations("WDC", "aae")
+    relations("INTERMAGNET")
+    relations("WDC")
+  else:
+    relations(server_id, observatory)
