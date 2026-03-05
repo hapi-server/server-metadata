@@ -9,7 +9,7 @@ HAPI = Namespace("http://hapi.org/rdf/")
 import hapimeta
 log = hapimeta.logger('relations')
 
-all = True
+all = False
 if not all:
   server_id = 'INTERMAGNET'
   observatory = 'aae'
