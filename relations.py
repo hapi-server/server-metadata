@@ -9,26 +9,26 @@ HAPI = Namespace("http://hapi.org/rdf/")
 import hapimeta
 log = hapimeta.logger('relations')
 
-debug_observatory = None
-debug_observatory = 'aae'
+server_id = 'WDC'
+observatory = 'aae'
 
-def relations():
-  server_id = 'INTERMAGNET'
-  url = "https://imag-data.bgs.ac.uk/GIN_V1/hapi"
+def relations(server_id, observatory=None):
+  if server_id == 'INTERMAGNET':
+    url = "https://imag-data.bgs.ac.uk/GIN_V1/hapi"
 
-  server_id = 'WDC'
-  url = 'https://wdcapi.bgs.ac.uk/hapi/catalog'
+  if server_id == 'WDC':
+    url = 'https://wdcapi.bgs.ac.uk/hapi'
 
   catalog = _catalog(server_id)
 
   dataset_ids = catalog.keys()
-  if debug_observatory is not None:
+  if observatory is not None:
     # For debugging, keep only IDs that start with aae
-    dataset_ids = [id for id in catalog.keys() if id.startswith(debug_observatory)]
+    dataset_ids = [id for id in catalog.keys() if id.startswith(observatory)]
 
   observatories = _observatories(dataset_ids, server_id)
 
-  if debug_observatory is not None:
+  if observatory is not None:
     import utilrsw
     utilrsw.print_dict(observatories)
 
@@ -38,6 +38,7 @@ def relations():
   _provides(g, dataset_ids)
   _definitions(g, dataset_ids, catalog)
 
+
   _cadence_relations(g, observatories, catalog, server_id)
 
   if server_id == 'INTERMAGNET':
@@ -46,7 +47,7 @@ def relations():
   _frame_relations(g, observatories, catalog, server_id)
 
   # Write the output files, in RDF/TTL and JSON-LD
-  _write(g, server_id)
+  _write(g, server_id, observatory=observatory)
 
 
 def _catalog(server_id):
@@ -119,21 +120,6 @@ def _observatories(dataset_ids, server_id):
   return grouped
 
 
-def _write(g, server_id):
-  import os
-  out_dir = os.path.join(hapimeta.data_dir, 'relations')
-  if not os.path.exists(out_dir):
-    os.makedirs(out_dir)
-  basename = os.path.join(out_dir, server_id)
-  if debug_observatory is not None:
-    basename += f"-{debug_observatory}"
-
-  g.serialize(destination=f"{basename}.ttl", format='turtle')
-  g.serialize(destination=f"{basename}.jsonld", format='json-ld')
-
-  print(f"Conversion complete. Output written to {basename}.{{ttl, jsonld}}")
-
-
 def _head(g, url):
   # Define the header of the graph
   # - bind namespaces that are not included by default
@@ -167,7 +153,7 @@ def _definitions(g, dataset_ids, catalog):
     for parameter in catalog[dataset_id]['parameters']:
       # the parameter object must be a URI I propose to compose it as follows:
       # ex: https://imag-data.bgs.ac.uk/GIN_V1/hapi/info?dataset=aae/reported/PT1S/native#Field_Magnitude
-      uri_parameter = URIRef(f"{g.base}/{str(uri_dataset)}#{parameter}")
+      uri_parameter = URIRef(f"{str(uri_dataset)}#{parameter}")
       g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
 
 
@@ -282,5 +268,31 @@ def _frame_relations(g, dataset_ids_parts, catalog, server_id):
           g.add((uri1, HAPI.isReferenceFrameTransformOf, uri2))
 
 
+def _write(g, server_id, observatory=None):
+  import os
+  out_dir = os.path.join(hapimeta.data_dir, 'relations')
+  if not os.path.exists(out_dir):
+    os.makedirs(out_dir)
+  basename = os.path.join(out_dir, server_id)
+  if observatory is not None:
+    basename += f"-{observatory}"
+
+  # Preserve graph base in serialized outputs for downstream consumers.
+  base_iri = str(getattr(g, "base", "")) or None
+
+  turtle_kwargs = {"format": "turtle"}
+  if base_iri:
+    turtle_kwargs["base"] = base_iri
+
+  jsonld_kwargs = {"format": "json-ld"}
+  if base_iri:
+    jsonld_kwargs["context"] = {"@base": base_iri}
+
+  g.serialize(destination=f"{basename}.ttl", **turtle_kwargs)
+  g.serialize(destination=f"{basename}.jsonld", **jsonld_kwargs)
+
+  print(f"Conversion complete. Output written to {basename}.{{ttl, jsonld}}")
+
+
 if __name__ == "__main__":
-  relations()
+  relations(server_id, observatory)
