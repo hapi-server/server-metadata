@@ -8,12 +8,13 @@ import utilrsw
 
 from datetime import datetime, timedelta
 from hapiclient import hapitime2datetime
-from hapimeta import logger, data_dir, cli
+from hapimeta import logger, data_dir, cli, server_error, server_error_write
 
 log = logger('availabilities')
 
 debug_layout = False
 debug_svglinks = False
+n_datasets = None # For debugging, only process the first n_datasets datasets
 # Number of time range bars per plot
 lines_per_plot = 50
 # File formats to save. 'png' and 'svg' are supported.
@@ -315,15 +316,15 @@ def process_server(server, catalog_all):
 
   def extract_time(info, key):
     if key not in info:
-      log.error(f"{server} {dataset['id']}: key '{key}' is not in info")
+      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
       return None, None
 
     if info[key] is None:
-      log.error(f"{server} {dataset['id']}: info[{key}] is None")
+      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
       return None, None
 
     if info[key].strip() == "":
-      log.error(f"{server} {dataset['id']}: info[{key}].strip() = ''")
+      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
       return None, None
 
     hapitime = info[key]
@@ -333,7 +334,8 @@ def process_server(server, catalog_all):
     except Exception as e:
       import traceback
       trace = traceback.format_exc()
-      log.error(f"{server} {dataset['id']}: hapitime2datetime({hapitime}) returned:\n{trace}")
+      msg = f"hapitime2datetime({hapitime}) returned:\n{trace}"
+      server_error(server, dataset['id'], msg, log)
       return None, None
 
     return info[key], dt
@@ -351,12 +353,13 @@ def process_server(server, catalog_all):
   log.info(f"{server}: {len(datasets)} datasets")
   for dataset in datasets:
 
+    if 'id' not in dataset:
+      server_error(server, "_", "No 'id' key in dataset object", log)
+
     log.info(f"  Processing dataset: {dataset['id']}")
 
-    if 'id' not in dataset:
-      log.error(f'    No "id" key in dataset = {dataset}')
     if 'info' not in dataset:
-      log.error(f"    No 'info' key for dataset with id = {dataset['id']}")
+      server_error(server, dataset['id'], "Missing /info response data.", log)
       continue
 
     info = dataset['info']
@@ -388,6 +391,12 @@ def process_server(server, catalog_all):
   server_url = catalog_all['about']['x_url']
   x_LastUpdate = catalog_all['catalog']['x_LastUpdate']
   title = f"{server} | {server_url} | {len(ids)} datasets | {x_LastUpdate}"
+
+  if n_datasets is not None and len(ids) > n_datasets:
+    # For debugging, only process the first n_datasets datasets
+    ids = ids[:n_datasets]
+    starts = starts[:n_datasets]
+    stops = stops[:n_datasets]
 
   files = plot(server, server_url, server_dir, title, ids, starts, stops,
                lines_per_plot=lines_per_plot,
@@ -423,6 +432,7 @@ if len(servers) == 0:
 dfs = []
 for server in servers:
   df = process_server(server, catalogs_all[server])
+  server_error_write(server, log)
   dfs.append(df)
 
 dfs = pandas.concat(dfs, ignore_index=True)

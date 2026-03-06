@@ -10,6 +10,36 @@ __version__ = version()
 
 data_dir = 'data'
 
+def server_error(server, dataset, message, logger):
+  logger.error(f"    {server} {dataset}: {message}")
+
+  if server not in server_error.errors:
+    server_error.errors[server] = {}
+
+  if dataset not in server_error.errors[server]:
+    server_error.errors[server][dataset] = []
+
+  server_error.errors[server][dataset].append(message.lstrip())
+
+server_error.errors = {}
+
+def server_error_write(server, logger, remove=False):
+  import os
+  import utilrsw
+
+  fname = os.path.join(data_dir, 'log', 'errors', f"{server}.json")
+  if server in server_error.errors:
+    if remove and os.path.exists(fname):
+      logger.info(f"Removing existing error file {fname}.")
+      os.remove(fname)
+    errors = server_error.errors[server]
+    utilrsw.write(fname, errors, logger=logger)
+  else:
+    if os.path.exists(fname):
+      logger.info(f"No errors. Removing existing error file {fname}.")
+      os.remove(fname)
+
+
 def logger(base_name):
   import utilrsw
   kwargs = {
@@ -21,7 +51,6 @@ def logger(base_name):
     "debug_logger": False
   }
   return utilrsw.logger(base_name, **kwargs)
-
 
 def cli():
   # Usage

@@ -1,12 +1,12 @@
 import os
 import utilrsw
-from hapimeta import get, logger, data_dir, cli
+from hapimeta import get, logger, data_dir, cli, server_error, server_error_write
 
 debug        = False
 servers_only = cli() # None to get all servers; otherwise list of server ids.
-max_infos    = None # None to get all infos. Use small number to test code.
-timeout      = 60   # Set to small value to force failures.
-max_workers  = 10   # Number of threads to use for parallel processing.
+max_infos    = None  # None to get all infos. Use small number to test code.
+timeout      = 60    # Set to small value to force failures.
+max_workers  = 10    # Number of threads to use for parallel processing.
 
 if debug:
   # Only get info response from first dataset
@@ -35,10 +35,11 @@ def get_endpoint(abouts, endpoint, servers_only=None):
       continue
 
     log.info(server_id)
+    url = f"{about['x_url']}/{endpoint}"
     try:
-      result = get(f"{about['x_url']}/{endpoint}", log=log, indent="  ", timeout=timeout)
+      result = get(url, log=log, indent="  ", timeout=timeout)
     except Exception as e:
-      log.error(f"  {e}")
+      server_error(server_id, url, str(e), log)
       result = {
         'x_LastUpdateAttempt': now,
         'x_LastUpdateError': str(e)
@@ -85,34 +86,39 @@ def get_endpoint(abouts, endpoint, servers_only=None):
   return results
 
 
-def get_infos(cid, catalog, max_infos=None):
+def get_infos(server_id, catalog, max_infos=None):
 
   if 'catalog' not in catalog:
-    msg = f"  Skipping {cid} because no catalog array."
+    msg = f"  Skipping {server_id} because no catalog array."
     log.info(msg)
     return
 
   n = 1
   for dataset in catalog['catalog']:
-    id = dataset['id']
-    log.info(id)
+    dataset_id = dataset['id']
+
+    log.info(dataset_id)
+
+    url = f"{catalog['about']['x_url']}/info?id={dataset_id}"
     try:
       kwargs = {'log': log, 'indent': "  ", 'timeout': timeout}
-      info = get(f"{catalog['about']['x_url']}/info?id={id}", **kwargs)
+      info = get(url, **kwargs)
       info['x_LastUpdate'] = utilrsw.time.utc_now()
     except Exception as e:
+      server_error(server_id, url, str(e), log)
       info = {
         'x_LastUpdateError': str(e),
         'x_LastUpdateAttempt': utilrsw.time.utc_now()
       }
 
     if 'parameters' not in info:
+      server_error(server_id, url, "No parameters node in JSON response.", log)
       info = {
         'x_LastUpdateAttempt': utilrsw.time.utc_now(),
         'x_LastUpdateError': "No parameters node in JSON response."
       }
 
-    fname = f"{data_dir}/infos/{cid}/{id}.json"
+    fname = f"{data_dir}/infos/{server_id}/{dataset_id}.json"
     if 'x_LastUpdateError' in info:
       log.info("  Attempting to read last successful /info response.")
       try:
@@ -121,7 +127,7 @@ def get_infos(cid, catalog, max_infos=None):
         # Overwrites x_LastUpdate{Attempt,Error}
         info = {**info_last, **info}
       except:
-        log.info("  No last successful /info response found.")
+        server_error(server_id, url, "No last successful /info response found.", log)
         continue
     else:
       info['x_LastUpdate'] = utilrsw.time.utc_now()
@@ -144,17 +150,19 @@ def get_infos(cid, catalog, max_infos=None):
 
     if max_infos is not None and n >= max_infos:
       log.info(f"Stoping because {max_infos} /info requests made.")
+      server_error_write(server_id, log, remove=True)
       return
 
     n = n + 1
 
   try:
-    fname = f"{data_dir}/catalog/{cid}-all.json"
+    fname = f"{data_dir}/catalog/{server_id}-all.json"
     log.info(f"  Writing {fname}")
     utilrsw.write(fname, catalog['catalog'])
   except Exception as e:
     log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
 
+  server_error_write(server_id, log, remove=True)
 
 def read_abouts(servers_repo, about_files):
   abouts = []
