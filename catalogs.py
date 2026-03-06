@@ -46,6 +46,8 @@ def get_endpoint(abouts, endpoint, servers_only=None):
       }
 
     if endpoint == 'catalog' and 'catalog' not in result:
+      # Treat this as a failed response and (possibly) over-write result with
+      #  more specific information.
       result = {
         'x_LastUpdateAttempt': now,
         'x_LastUpdateError': "No catalog node in JSON response."
@@ -138,18 +140,18 @@ def get_infos(server_id, catalog, max_infos=None):
     except Exception as e:
       log.error(f"  Error writing {fname}: {e}")
 
-    if 'parameter' in info['parameters']:
+    if 'parameters' in info:
       for parameter in info['parameters']:
         if 'bins' in parameter:
           if 'centers' in parameter['bins']:
             del parameter['bins']['centers']
-          if 'ranges' in parameter['ranges']:
+          if 'ranges' in parameter['bins']:
             del parameter['bins']['ranges']
 
     dataset['info'] = info
 
     if max_infos is not None and n >= max_infos:
-      log.info(f"Stoping because {max_infos} /info requests made.")
+      log.info(f"Stopping because {max_infos} /info requests made.")
       server_error_write(server_id, log, remove=True)
       return
 
@@ -188,7 +190,7 @@ def write(file_name, data, pkl=False):
 
   file_name = file_name.replace('.json', '.pkl')
   try:
-    utilrsw.write(file_name, catalogs, logger=log)
+    utilrsw.write(file_name, data, logger=log)
   except Exception as e:
     log.error(f"Error writing {file_name}: {e}. Exiting with code 1.")
     exit(1)
@@ -283,12 +285,16 @@ catalogs
 """
 if max_workers == 1:
   for server_id in catalogs.keys():
+    if 'catalog' not in catalogs[server_id]:
+      continue
     get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
 else:
   # Build infos for each server in parallel.
   # (/info requests for a each server are sequential.)
   from concurrent.futures import ThreadPoolExecutor
   def call(server_id):
+    if 'catalog' not in catalogs[server_id]:
+      return
     get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
     pool.map(call, catalogs.keys())

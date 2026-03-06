@@ -143,8 +143,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       ax.text(starts[n], y, start_text[n], **text_kwargs)
 
   n_plots = math.ceil(len(datasets)/lines_per_plot)
-  pad = math.ceil(math.log10(n_plots))
-  starts_min = numpy.min(starts)
+  pad = max(1, math.ceil(math.log10(n_plots + 1)))
   stops_max = datetime.now() + timedelta(days=5*365)
   starts_min = datetime(1960, 1, 1, 0, 0, 0)
   max_len = 0
@@ -207,13 +206,13 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
     fn_padded = f"{fn:0{pad}d}"
     title_ = title + f" | {fn}/{n_plots}"
     config(ax, starts_min, stops_max, title_, left_margin, right_margin)
-    file = savefig(fn)
+    file = savefig(fn_padded)
     files.append(file)
 
   return files
 
 
-def html(files, server_dir):
+def html(files, server_dir, server):
   import base64
 
   # Create the HTML content with the embedded PNG data
@@ -281,6 +280,8 @@ def html(files, server_dir):
   html_content = html_content[1:] # Remove first line break
   divs_svg = ""
   divs_png = ""
+  file_svg = None
+  file_png = None
   for file in files:
     if 'svg' in savefig_fmts:
       file_svg = os.path.join(server_dir, "svg", f"{file}.svg")
@@ -297,14 +298,14 @@ def html(files, server_dir):
 
   html_content = html_content.replace("TITLE", server)
 
-  if 'svg' in savefig_fmts:
+  if 'svg' in savefig_fmts and file_svg is not None:
     html_content_svg = html_content
     html_content_svg = html_content_svg.replace("DIVS", divs_svg)
     html_content_svg = html_content_svg.replace("SEARCH", search)
     fname = os.path.join(os.path.dirname(file_svg), f'{server}.html')
     write(fname, html_content_svg)
 
-  if 'png' in savefig_fmts:
+  if 'png' in savefig_fmts and file_png is not None:
     html_content_png = html_content
     html_content_png = html_content_png.replace("DIVS", divs_png)
     html_content_png = html_content_png.replace("SEARCH", "")
@@ -316,15 +317,15 @@ def process_server(server, catalog_all):
 
   def extract_time(info, key):
     if key not in info:
-      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
+      server_error(server, dataset['id'], f"key '{key}' is not in info.", log)
       return None, None
 
     if info[key] is None:
-      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
+      server_error(server, dataset['id'], f"info[{key}] not found.", log)
       return None, None
 
     if info[key].strip() == "":
-      server_error(server, dataset['id'], f"key '{key}' is not in info", log)
+      server_error(server, dataset['id'], f"info[{key}].strip() == ''", log)
       return None, None
 
     hapitime = info[key]
@@ -355,6 +356,7 @@ def process_server(server, catalog_all):
 
     if 'id' not in dataset:
       server_error(server, "_", "No 'id' key in dataset object", log)
+      continue
 
     log.info(f"  Processing dataset: {dataset['id']}")
 
@@ -389,7 +391,7 @@ def process_server(server, catalog_all):
   log.info("Plotting availabilities")
 
   server_url = catalog_all['about']['x_url']
-  x_LastUpdate = catalog_all['catalog']['x_LastUpdate']
+  x_LastUpdate = catalog_all['catalog'].get('x_LastUpdate', '')
   title = f"{server} | {server_url} | {len(ids)} datasets | {x_LastUpdate}"
 
   if n_datasets is not None and len(ids) > n_datasets:
@@ -407,7 +409,7 @@ def process_server(server, catalog_all):
     log.info(f"Writing {fname}")
     write(fname, files)
 
-  html(files, server_dir)
+  html(files, server_dir, server)
 
   return df
 
@@ -435,6 +437,6 @@ for server in servers:
   server_error_write(server, log)
   dfs.append(df)
 
-dfs = pandas.concat(dfs, ignore_index=True)
-write(f"{base_dir}/availabilities.pkl", df)
-write(f"{base_dir}/availabilities.csv", df)
+dfs = pandas.concat([d for d in dfs if d is not None], ignore_index=True)
+write(f"{base_dir}/availabilities.pkl", dfs)
+write(f"{base_dir}/availabilities.csv", dfs)

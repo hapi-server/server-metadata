@@ -3,7 +3,7 @@ import hapimeta
 
 log = hapimeta.logger('abouts')
 
-def abouts(cfg):
+def abouts(cfg, simulate=False):
 
   utilrsw.git.clone_or_pull(cfg['repo_dir'], cfg['repo_url'], logger=log)
 
@@ -13,19 +13,22 @@ def abouts(cfg):
 
     kwargs = {
       "timeout": cfg['timeout'],
-      "retries": cfg['retries']
+      "retries": cfg['retries'],
+      "simulate": simulate
     }
     updated = _update(cfg['servers'], last, default, **kwargs)
     _write(updated, last)
 
   _write_legacy()
 
-  msg = "Update abouts.json, all.txt, all_.txt [skip ci]"
-  utilrsw.git.push(cfg['repo_dir'], cfg['repo_url'], msg, logger=log)
+  if cfg['servers'] is None:
+    # Only push if updating all servers
+    msg = "Update abouts.json, all.txt, all_.txt [skip ci]"
+    utilrsw.git.push(cfg['repo_dir'], cfg['repo_url'], msg, logger=log)
 
 
-def _equivalent_dicts(old, new, ignore=None):
-  """Return True if dicts dicts are same, ignoring certain x_ keys."""
+def _dict_diff(old, new, ignore=None):
+  """Return the difference between two dicts, optionally ignoring certain keys."""
   import json
   import deepdiff
 
@@ -110,7 +113,7 @@ def _update(servers, lasts_fname, defaults_fname,
     if simulate:
       # Simulate a default being updated.
       import random
-      default['title'] = f"{last['title']}{random.random()}"
+      default['title'] = f"{last.get('title', '')}{random.random()}"
 
     for key in keys_added:
       if key in last:
@@ -133,14 +136,13 @@ def _update(servers, lasts_fname, defaults_fname,
     if x_LastUpdateError is not None:
       about_updated['x_LastUpdateError'] = x_LastUpdateError
 
-    if len(about_updated) != 0:
-      diff = _equivalent_dicts(last, about_updated, ignore=keys_added)
-      if diff:
-        msg = "Change found between updated and last about for "
-        msg += f"{about_updated['x_url']}: {diff}"
-        log.info(msg)
-        about_updated['x_LastChange'] = utilrsw.time.utc_now()
-        about_updated['x_LastChangeDiff'] = diff
+    diff = _dict_diff(last, about_updated, ignore=keys_added)
+    if diff:
+      msg = "Change found between updated and last about for "
+      msg += f"{about_updated['x_url']}: {diff}"
+      log.info(msg)
+      about_updated['x_LastChange'] = utilrsw.time.utc_now()
+      about_updated['x_LastChangeDiff'] = diff
 
     abouts_updated.append(about_updated)
 
@@ -206,4 +208,4 @@ def _write(abouts, fname):
 
 if __name__ == "__main__":
   cfg = hapimeta.config('about')
-  abouts(cfg)
+  abouts(cfg, simulate=False)
