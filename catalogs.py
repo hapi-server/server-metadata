@@ -91,17 +91,39 @@ def get_endpoint(abouts, endpoint, servers_only=None):
 def get_infos(server_id, catalog, max_infos=None):
 
   if 'catalog' not in catalog:
-    msg = f"  Skipping {server_id} because no catalog array."
-    log.info(msg)
+    msg = f"  Skipping {server_id} because no /catalog response."
+    server_error(server_id, "_", msg, log)
     return
 
+  if 'catalog' not in catalog['catalog']:
+    msg = f"  Skipping {server_id} because no 'catalog' node in /catalog response."
+    server_error(server_id, "_", msg, log)
+    return
+
+  if 'about' not in catalog:
+    msg = f"  Skipping {server_id} because no /about response."
+    server_error(server_id, "_", msg, log)
+    return
+
+  if 'x_url' not in catalog['about']:
+    msg = f"  Skipping {server_id} because no 'x_url' about node."
+    server_error(server_id, "_", msg, log)
+    return
+
+  log.info(f"{server_id}")
+
   n = 1
-  for dataset in catalog['catalog']:
+  for didx, dataset in enumerate(catalog['catalog']['catalog']):
+
+    if 'id' not in dataset:
+      msg = f"  Skipping dataset because no 'id' in dataset #{didx}."
+      server_error(server_id, "_", msg, log)
+      continue
+
     dataset_id = dataset['id']
 
-    log.info(dataset_id)
-
     url = f"{catalog['about']['x_url']}/info?id={dataset_id}"
+
     try:
       kwargs = {'log': log, 'indent': "  ", 'timeout': timeout}
       info = get(url, **kwargs)
@@ -165,6 +187,7 @@ def get_infos(server_id, catalog, max_infos=None):
     log.error(f"Error writing {fname}: {e}. Exiting with code 1.")
 
   server_error_write(server_id, log, remove=True)
+
 
 def read_abouts(servers_repo, about_files):
   abouts = []
@@ -287,7 +310,7 @@ if max_workers == 1:
   for server_id in catalogs.keys():
     if 'catalog' not in catalogs[server_id]:
       continue
-    get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
+    get_infos(server_id, catalogs[server_id], max_infos=max_infos)
 else:
   # Build infos for each server in parallel.
   # (/info requests for a each server are sequential.)
@@ -295,7 +318,7 @@ else:
   def call(server_id):
     if 'catalog' not in catalogs[server_id]:
       return
-    get_infos(server_id, catalogs[server_id]['catalog'], max_infos=max_infos)
+    get_infos(server_id, catalogs[server_id], max_infos=max_infos)
   with ThreadPoolExecutor(max_workers=max_workers) as pool:
     pool.map(call, catalogs.keys())
 
