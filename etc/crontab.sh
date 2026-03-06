@@ -8,8 +8,11 @@ if [ -z "${CRONTAB_SH_LOGGED:-}" ]; then
   log_dir="$script_dir/../data/log/crontab"
   mkdir -p "$log_dir"
   log_file="$log_dir/crontab-$(/bin/date +%Y%m%d).log"
+  error_file="$log_dir/crontab-$(/bin/date +%Y%m%d).error.log"
   export CRONTAB_SH_LOGGED=1
-  exec >> "$log_file" 2>&1
+  strip='s/\x1b\[[0-9;]*[a-zA-Z]//g'
+  exec > >(sed "$strip" >> "$log_file") \
+       2> >(sed "$strip" | tee -a "$error_file" >> "$log_file")
 fi
 
 cd "$repo_dir" || exit 1
