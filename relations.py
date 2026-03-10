@@ -63,7 +63,7 @@ def _catalog(server_id):
 
   log.info("Reading and preparing catalog.")
 
-  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
+  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.pkl')
   catalog = utilrsw.read(catalog_file)
   if 'catalog' not in catalog:
     log.error(f"Catalog file {catalog_file} does not contain 'catalog' key")
