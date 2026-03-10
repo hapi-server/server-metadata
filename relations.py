@@ -4,12 +4,12 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import RDF, DCAT, DCTERMS
 
 # define the HAPI namespace
-HAPI = Namespace("http://hapi.org/rdf#")
+HAPI = Namespace("http://hapi-server.org/rdf#")
 
 import hapimeta
 log = hapimeta.logger('relations')
 
-all = True
+all = False
 if not all:
   server_id = 'INTERMAGNET'
   observatory = 'aae'
@@ -304,6 +304,7 @@ def _write(g, server_id, observatory=None):
   jsonld_kwargs = {"format": "json-ld"}
   if base_iri:
     jsonld_kwargs["base"] = base_iri
+    jsonld_kwargs["context"] = {"@base": base_iri}
 
   g.serialize(destination=f"{basename}.ttl", **turtle_kwargs)
   g.serialize(destination=f"{basename}.jsonld", **jsonld_kwargs)
