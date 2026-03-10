@@ -9,7 +9,7 @@ HAPI = Namespace("http://hapi.org/rdf#")
 import hapimeta
 log = hapimeta.logger('relations')
 
-all = False
+all = True
 if not all:
   server_id = 'INTERMAGNET'
   observatory = 'aae'
@@ -63,13 +63,13 @@ def _catalog(server_id):
 
   log.info("Reading and preparing catalog.")
 
-  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.pkl')
+  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
   catalog = utilrsw.read(catalog_file)
   if 'catalog' not in catalog:
     log.error(f"Catalog file {catalog_file} does not contain 'catalog' key")
     return None
 
-  catalog = utilrsw.array_to_dict(catalog, 'id')
+  catalog = utilrsw.array_to_dict(catalog['catalog'], 'id')
 
   for dataset_id in list(catalog.keys()):
     dataset = catalog[dataset_id]
