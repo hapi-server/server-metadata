@@ -9,7 +9,7 @@ HAPI = Namespace("http://hapi.org/rdf#")
 import hapimeta
 log = hapimeta.logger('relations')
 
-all = True
+all = False
 if not all:
   server_id = 'INTERMAGNET'
   observatory = 'aae'
@@ -27,6 +27,9 @@ def relations(server_id, observatory=None):
   if observatory is not None:
     # For debugging, keep only IDs that start with aae
     dataset_ids = [id for id in catalog.keys() if id.startswith(observatory)]
+    log.info(f"Found {len(dataset_ids)} datasets for server {server_id} and observatory {observatory}")
+  else:
+    log.info(f"Found {len(dataset_ids)} datasets for server {server_id}")
 
   observatories = _observatories(dataset_ids, server_id)
   if observatory is not None:
