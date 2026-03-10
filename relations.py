@@ -22,6 +22,9 @@ def relations(server_id, observatory=None):
     url = 'https://wdcapi.bgs.ac.uk/hapi'
 
   catalog = _catalog(server_id)
+  if catalog is None:
+    log.error(f"Failed to load catalog for server {server_id}")
+    return
 
   dataset_ids = catalog.keys()
   if observatory is not None:
@@ -62,6 +65,10 @@ def _catalog(server_id):
 
   catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
   catalog = utilrsw.read(catalog_file)
+  if 'catalog' not in catalog:
+    log.error(f"Catalog file {catalog_file} does not contain 'catalog' key")
+    return None
+
   catalog = utilrsw.array_to_dict(catalog, 'id')
 
   for dataset_id in list(catalog.keys()):
