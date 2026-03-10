@@ -1,8 +1,10 @@
 import os
+import datetime
 
 import utilrsw
 import tableui
 
+import hapiclient
 from hapimeta import logger, data_dir, cli
 
 log = logger('table')
@@ -36,6 +38,15 @@ def format_bins(bins):
         bins_new[key_new] = bin[key]
 
   return bins_new
+
+
+def normalize_time(time_str):
+  try:
+    dt = hapiclient.hapitime2datetime(time_str)[0]
+    return datetime.datetime.strftime(dt, '%Y-%m-%dT%H:%M:%S.%fZ')
+  except Exception as e:
+    log.error(f"Error normalizing time: {time_str}. Error: {e}")
+    return ''
 
 
 def compute_rows(all_file, servers=None, omits=[]):
@@ -72,10 +83,14 @@ def compute_rows(all_file, servers=None, omits=[]):
 
       parameters = utilrsw.get_path(dataset, ['info', 'parameters'])
       if parameters is None:
-        log.error(f"Could not find parameters for dataset: {server}/{dataset['dataset']}. Skipping dataset.")
+        msg = "Could not find parameters for dataset: "
+        msg += f"{server}/{dataset['dataset']}. Skipping dataset."
+        log.error(msg)
         continue
 
       dataset['x_nParams'] = len(parameters)
+      startDate = utilrsw.get_path(dataset, 'info.startDate', '')
+      stopDate = utilrsw.get_path(dataset, 'info.stopDate', '')
       for parameter in parameters:
         parameter['parameter'] = parameter['name']
         del parameter['name']
@@ -84,8 +99,10 @@ def compute_rows(all_file, servers=None, omits=[]):
         parameter = {
           "server": server,
           "dataset": dataset['dataset'],
-          "startDate": utilrsw.get_path(dataset, 'info.startDate', ''),
-          "stopDate": utilrsw.get_path(dataset, 'info.stopDate', ''),
+          "startDate": startDate,
+          "x_startDate": normalize_time(startDate),
+          "stopDate": stopDate,
+          "x_stopDate": normalize_time(stopDate),
           "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
           **parameter
         }
@@ -95,7 +112,9 @@ def compute_rows(all_file, servers=None, omits=[]):
             try:
               parameter['bins'] = format_bins(parameter['bins'])
             except Exception as e:
-              log.error(f"Error formatting bins for parameter: {server}/{dataset['dataset']}/{parameter['parameter']}. Error: {e}")
+              msg = "Error formatting bins for parameter: "
+              msg += f"{server}/{dataset['dataset']}/{parameter['parameter']}. Error: {e}"
+              log.error(msg)
 
         row = utilrsw.flatten_dicts(parameter, simplify=True)
         rows['parameter'].append(reorder_keys(row))
@@ -106,12 +125,13 @@ def compute_rows(all_file, servers=None, omits=[]):
   return rows
 
 file = os.path.join(data_dir, 'catalogs-all.pkl')
-omits = ['info/HAPI', 'info/status', 'info/definitions', 'info/x_LastUpdate']
+omits = ['info/HAPI', 'info/status', 'info/definitions']
 servers = cli() # None => all servers
 
 rows = compute_rows(file, omits=omits, servers=servers)
 
-config = utilrsw.read(os.path.join(utilrsw.script_info()['dir'], 'table', 'dict2sql.json'))
+p = [utilrsw.script_info()['dir'], 'table', 'dict2sql.json']
+config = utilrsw.read(os.path.join(*p))
 tableui.dict2sql(rows['dataset'], config['dataset'], logger=log)
 tableui.dict2sql(rows['parameter'], config['parameter'], logger=log)
 
