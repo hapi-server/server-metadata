@@ -2,7 +2,7 @@
 <plist version="1.0">
     <dict>
         <key>Label</key>
-        <string>servefs</string>
+        <string>serve-table</string>
         <key>EnvironmentVariables</key>
         <dict>
 		<key>PATH</key>
