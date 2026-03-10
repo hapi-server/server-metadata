@@ -4,7 +4,7 @@ from rdflib import Graph, Namespace, URIRef
 from rdflib.namespace import RDF, DCAT, DCTERMS
 
 # define the HAPI namespace
-HAPI = Namespace("http://hapi.org/rdf/")
+HAPI = Namespace("http://hapi.org/rdf#")
 
 import hapimeta
 log = hapimeta.logger('relations')
@@ -142,7 +142,7 @@ def _provides(g, dataset_ids):
 
   g.add((g.base, RDF.type, HAPI.Service))
   for dataset_id in dataset_ids:
-    uri_ref = f"{g.base}/info?dataset={dataset_id}"
+    uri_ref = f"/info?dataset={dataset_id}"
     g.add((g.base, DCAT.servesDataset, URIRef(uri_ref)))
 
   g.add((g.base, DCAT.endpointURL, g.base))
@@ -152,12 +152,14 @@ def _definitions(g, dataset_ids, catalog):
   # Include the relation between Datasets and Parameters
 
   for dataset_id in dataset_ids:
-    uri_dataset = URIRef(f"{g.base}/info?dataset={dataset_id}")
+    uri_dataset = URIRef(f"/info?dataset={dataset_id}")
     g.add((uri_dataset, RDF.type, HAPI.Dataset))
-    for parameter in catalog[dataset_id]['parameters']:
+    for i, parameter in enumerate(catalog[dataset_id]['parameters']):
       # the parameter object must be a URI I propose to compose it as follows:
       # ex: https://imag-data.bgs.ac.uk/GIN_V1/hapi/info?dataset=aae/reported/PT1S/native#Field_Magnitude
       uri_parameter = URIRef(f"{str(uri_dataset)}#{parameter}")
+      param_type = HAPI.Time if i == 0 else HAPI.Parameter
+      g.add((uri_parameter, RDF.type, param_type))
       g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
 
 
@@ -200,8 +202,8 @@ def _cadence_relations(g, dataset_ids_parts, catalog, server_id):
             log.warning(f"Dataset ID '{id_resample}' or '{id_source}' not found in catalog.")
             continue
 
-          uri_resample = URIRef(f"{g.base}/info?dataset={id_resample}")
-          uri_source = URIRef(f"{g.base}/info?dataset={id_source}")
+          uri_resample = URIRef(f"/info?dataset={id_resample}")
+          uri_source = URIRef(f"/info?dataset={id_source}")
           g.add((uri_resample, HAPI.resamplingMethod, HAPI.average))
           g.add((uri_resample, HAPI.isResampledOf, uri_source))
 
@@ -223,8 +225,8 @@ def _quality_relations(g, dataset_ids_parts):
     for quality in sub_qualities:
       for cadence in dataset_ids_parts[observatory]['cadences']:
         for frame in dataset_ids_parts[observatory]['frames']:
-          uri1 = URIRef(f"{g.base}/info?dataset={observatory}/{quality}/{cadence}/{frame}")
-          uri2 = URIRef(f"{g.base}/info?dataset={observatory}/{base_quality}/{cadence}/{frame}")
+          uri1 = URIRef(f"/info?dataset={observatory}/{quality}/{cadence}/{frame}")
+          uri2 = URIRef(f"/info?dataset={observatory}/{base_quality}/{cadence}/{frame}")
           g.add((uri1, DCTERMS.isVersionOf, uri2))
           # we could also say:
           # g.add((uri1, PROV.wasDerivedFrom, uri2))
@@ -268,8 +270,8 @@ def _frame_relations(g, dataset_ids_parts, catalog, server_id):
           if 'Field_Vector' not in catalog[dataset_id_2]['parameters']:
             continue
 
-          uri1 = URIRef(f"{g.base}/info?dataset={dataset_id_1}#Field_Vector")
-          uri2 = URIRef(f"{g.base}/info?dataset={dataset_id_2}#Field_Vector")
+          uri1 = URIRef(f"/info?dataset={dataset_id_1}#Field_Vector")
+          uri2 = URIRef(f"/info?dataset={dataset_id_2}#Field_Vector")
           g.add((uri1, HAPI.isReferenceFrameTransformOf, uri2))
 
 
@@ -291,7 +293,7 @@ def _write(g, server_id, observatory=None):
 
   jsonld_kwargs = {"format": "json-ld"}
   if base_iri:
-    jsonld_kwargs["context"] = {"@base": base_iri}
+    jsonld_kwargs["base"] = base_iri
 
   g.serialize(destination=f"{basename}.ttl", **turtle_kwargs)
   g.serialize(destination=f"{basename}.jsonld", **jsonld_kwargs)
