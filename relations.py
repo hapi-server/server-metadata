@@ -60,7 +60,7 @@ def _catalog(server_id):
 
   log.info("Reading and preparing catalog.")
 
-  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.json')
+  catalog_file = os.path.join(hapimeta.data_dir, 'catalog', f'{server_id}-all.pkl')
   catalog = utilrsw.read(catalog_file)
   catalog = utilrsw.array_to_dict(catalog, 'id')
 
