@@ -40,13 +40,18 @@ def format_bins(bins):
   return bins_new
 
 
-def normalize_time(time_str):
+def microseconds_1970(time_str):
   try:
+    time_str = str(time_str).strip()
     dt = hapiclient.hapitime2datetime(time_str)[0]
-    return datetime.datetime.strftime(dt, '%Y-%m-%dT%H:%M:%S.%fZ')
+    if dt.tzinfo is None:
+      dt = dt.replace(tzinfo=datetime.timezone.utc)
+    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    microseconds = (dt - epoch).total_seconds() * 1_000_000
+    return int(microseconds)
   except Exception as e:
     log.error(f"Error normalizing time: {time_str}. Error: {e}")
-    return ''
+    return None
 
 
 def compute_rows(all_file, servers=None, omits=[]):
@@ -100,9 +105,9 @@ def compute_rows(all_file, servers=None, omits=[]):
           "server": server,
           "dataset": dataset['dataset'],
           "startDate": startDate,
-          "x_startDate": normalize_time(startDate),
+          "x_startDate": microseconds_1970(startDate),
           "stopDate": stopDate,
-          "x_stopDate": normalize_time(stopDate),
+          "x_stopDate": microseconds_1970(stopDate),
           "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
           **parameter
         }
@@ -123,6 +128,7 @@ def compute_rows(all_file, servers=None, omits=[]):
       rows['dataset'].append(reorder_keys(row))
 
   return rows
+
 
 file = os.path.join(data_dir, 'catalogs-all.pkl')
 omits = ['info/HAPI', 'info/status', 'info/definitions']

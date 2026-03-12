@@ -2,11 +2,6 @@
   {
     "path": "datasets",
     "sqldb": "../data/table/hapi.all.datasets.sql",
-    "dataTables": {
-      "columnDefs": [
-        {"targets": "_all", "defaultContent": ""}
-      ]
-    },
     "dataTablesAdditions": {
       "renderFunctions": "render.js",
       "style": "style.css",
