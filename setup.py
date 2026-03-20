@@ -1,26 +1,25 @@
 import json
 from setuptools import setup, find_packages
 
-install_requires = ["hapiplot", "hapiclient", "deepdiff", "GitPython", "isodate"]
+install_requires = [
+  "hapiplot",
+  "hapiclient",
+  "deepdiff",
+  "GitPython",
+  "isodate"
+]
 
 try:
   # Will work if utilrsw was already installed, for example via pip install -e .
   import utilrsw
 except:
-  install_requires.append("utilrsw @ git+https://github.com/rweigel/utilrsw")
+  install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw")
 
 try:
   # Will work if tableui was already installed, for example via pip install -e .
   import tableui
 except:
   install_requires.append("tableui @ git+https://github.com/rweigel/table-ui")
-
-
-try:
-  # Will work if datetick was already installed, for example via pip install -e .
-  import datetick
-except:
-  install_requires.append("datetick @ git+https://github.com/rweigel/datetick")
 
 
 version = json.load(open('hapimeta/version.json'))['version']

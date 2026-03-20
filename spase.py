@@ -8,7 +8,7 @@ log = logger('spase')
 all_file = 'data/catalogs-all.pkl'
 servers = utilrsw.read(all_file)
 
-servers_keep = cli() # None => all servers
+servers_keep = cli()
 
 # Set to True to read info from data/info directory instead of from the catalog.
 # Use this for testing to avoid having to re-run the catalog step after making
@@ -34,11 +34,10 @@ def spase_stub(config):
 def add_NumericalData(Spase, dataset, map):
   NumericalData = utilrsw.map_dict(dataset, map)
   Spase['NumericalData'] = NumericalData
-  return None
 
 
 def add_Parameter(Spase, dataset, map):
-  parameters = utilrsw.get_path(dataset, 'info/parameters', sep='/')
+  parameters = utilrsw.get_path(dataset, 'info.parameters')
   if parameters is not None:
     Parameters = []
     for parameter in parameters:
@@ -48,10 +47,12 @@ def add_Parameter(Spase, dataset, map):
 
 
 def add_AccessInformation(Spase, dataset, about, capabilities, formatMap, template):
+
   import copy
 
   def script_info():
 
+    # Defaults to use if update fails.
     languages = ['IDL', 'Javascript', 'MATLAB', 'Python', 'Autoplot', 'curl', 'wget']
     try:
       url = "https://hapi-server.org/servers/?return=script-options"
@@ -158,22 +159,35 @@ def add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templa
 
 def add_SpatialMapping(Spase, dataset):
 
-  geoLocation = utilrsw.get_path(dataset, 'info/geoLocation', sep='/')
+  geoLocation = utilrsw.get_path(dataset, 'info.geoLocation')
 
-  # Technically this should not be used. In SPASE, lat/long are in GEO
-  # and elevation in WGS84. In HAPI, lat/long/elevation must be in WGS 84.
-  if geoLocation is not None:
+  if False and (geoLocation is not None):
+    # We discussed putting a warning in the description. This is not a good option
+    # because the description will become detached from the value. I think we
+    # should just do the conversion calculation and note that the
+    # calculation has been made in the description.
     Spase['NumericalData']['SpatialMapping'] = {
       "centerLongitude": geoLocation[0],
       "centerLatitude": geoLocation[1]
     }
     if len(geoLocation) > 2:
       Spase['NumericalData']['SpatialMapping']['centerElevation'] = geoLocation[2]
-    Spase['NumericalData']['SpatialMapping']['Description'] = "Spatial location of the dataset. In SPASE, lat/long are in GEO and elevation in WGS84. In HAPI, lat/long/elevation must be in WGS 84. Here lat, long, and elevation are all in WGS 84."
+    desc = "The SpatialMapping values are from the geoLocation object in HAPI metadata. "
+    desc += "Warning: In SPASE, centerLongitude and centerLatitude are in defined to be in GEO and "
+    desc += "centerElevation in WGS84. In HAPI, their equivalents are defined to be in WGS84. "
+    desc += "The values given for centerLongitude and centerLatitude are direct copies "
+    desc += "of content in the HAPI geoLocation and have not "
+    desc += "been converted from WGS84 to GEO."
+    Spase['NumericalData']['SpatialMapping']['Description'] = desc
 
-  point = utilrsw.get_path(dataset, 'info/location/point', sep='/')
-  coordinateSystemName = utilrsw.get_path(dataset, 'info/location/coordinateSystemName', sep='/')
+  point = utilrsw.get_path(dataset, 'info.location.point')
   if point is not None:
+    coordinateSystemName = utilrsw.get_path(dataset, 'info.location.coordinateSystemName')
+    # TODO: 1. Check coordinateSystemSchema and verify that 'GEO' is a valid 
+    #          name and it means the same thing as GEO in SPASE.
+    #       2. If vectorComponents, verify that they contain latitude, longitude,
+    #          and altitude and adjust what elements of point correspond to 
+    #          centerLongitude, centerLongitude, and centerElevation.
     if coordinateSystemName == 'GEO':
       Spase['NumericalData']['SpatialMapping'] = {
         "centerLongitude": point[0],
@@ -205,8 +219,8 @@ def add_ResourceHeader(Spase, dataset):
     additionalMetadata = utilrsw.get_path(dataset, 'info.additionalMetadata')
     if additionalMetadata is not None:
       if isinstance(additionalMetadata, dict):
-        #https://github.com/hapi-server/data-specification/issues/282
         additionalMetadata = [additionalMetadata]
+
       for additional in additionalMetadata:
 
         InformationURL = {"Name": "", "URL": ""}
@@ -245,12 +259,9 @@ def add_ResourceHeader(Spase, dataset):
 
   Spase['NumericalData']['ResourceHeader']["InformationURL"] = informationURLs(dataset)
 
-  #dataset['info']['datasetCitation'] = 'doi:10.1234/dataset1'
+  datasetCitation = utilrsw.get_path(dataset, 'info.datasetCitation')
+  resourceID = utilrsw.get_path(dataset, 'info.resourceID')
 
-  datasetCitation = utilrsw.get_path(dataset, 'info/datasetCitation', sep='/')
-  resourceID = utilrsw.get_path(dataset, 'info/resourceID', sep='/')
-
-  # Need to check citation
   # If not DOI, need to find place for datasetCitation and resourceID in SPASE
   if datasetCitation is not None:
     DOI = extract_doi(datasetCitation)
@@ -266,6 +277,7 @@ def add_ResourceHeader(Spase, dataset):
         desc = desc.rstrip('.')
         extra = f"HAPI resourceID: {resourceID}."
         Spase['NumericalData']['ResourceHeader']['Description'] = f"{desc}. {extra}"
+
 
 script_path = os.path.dirname(os.path.realpath(__file__))
 out_path = os.path.join(script_path, 'data', 'spase')
@@ -286,8 +298,8 @@ for server in servers:
     log.error(f"No catalog found for server: {server}")
     continue
 
-  capabilities = utilrsw.get_path(servers[server], 'capabilities')
   about = utilrsw.get_path(servers[server], 'about')
+  capabilities = utilrsw.get_path(servers[server], 'capabilities')
 
   for dataset in catalog:
 
@@ -301,15 +313,11 @@ for server in servers:
       dataset['info'] = info_dict
       log.info(f"  reread_info = True => overriding info from {all_file} with that in {info_file}.")
 
-    #log.info("Input:\n" + utilrsw.format_dict(dataset, style='json'))
-
     add_NumericalData(Spase, dataset, config['hapi2spase']['dataset'])
     add_ResourceHeader(Spase, dataset)
     add_SpatialMapping(Spase, dataset)
     add_AccessInformation(Spase, dataset, about, capabilities, config['formatMap'], config['AccessInformation'])
     add_Parameter(Spase, dataset, config['hapi2spase']['parameter'])
-
-    #log.info("Output:\n" + utilrsw.format_dict(Spase, style='json'))
 
     out_file = os.path.join(out_path, server, f"{dataset['id']}.json")
     log.debug(f"Writing {out_file}")
