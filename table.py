@@ -40,15 +40,13 @@ def format_bins(bins):
   return bins_new
 
 
-def microseconds_1970(time_str):
+def normalize_datetime(time_str):
   try:
     time_str = str(time_str).strip()
     dt = hapiclient.hapitime2datetime(time_str)[0]
     if dt.tzinfo is None:
       dt = dt.replace(tzinfo=datetime.timezone.utc)
-    epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-    microseconds = (dt - epoch).total_seconds() * 1_000_000
-    return int(microseconds)
+    return dt.strftime('%Y-%m-%dT%H:%M:%S.%f') + 'Z'
   except Exception as e:
     log.error(f"Error normalizing time: {time_str}. Error: {e}")
     return None
@@ -96,6 +94,8 @@ def compute_rows(all_file, servers=None, omits=[]):
       dataset['x_nParams'] = len(parameters)
       startDate = utilrsw.get_path(dataset, 'info.startDate', '')
       stopDate = utilrsw.get_path(dataset, 'info.stopDate', '')
+      dataset['x_startDate'] = normalize_datetime(startDate)
+      dataset['x_stopDate'] = normalize_datetime(stopDate)
       for parameter in parameters:
         parameter['parameter'] = parameter['name']
         del parameter['name']
@@ -105,9 +105,9 @@ def compute_rows(all_file, servers=None, omits=[]):
           "server": server,
           "dataset": dataset['dataset'],
           "startDate": startDate,
-          "x_startDate": microseconds_1970(startDate),
+          "x_startDate": normalize_datetime(startDate),
           "stopDate": stopDate,
-          "x_stopDate": microseconds_1970(stopDate),
+          "x_stopDate": normalize_datetime(stopDate),
           "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
           **parameter
         }
@@ -141,4 +141,4 @@ config = utilrsw.read(os.path.join(*p))
 tableui.dict2sql(rows['dataset'], config['dataset'], logger=log)
 tableui.dict2sql(rows['parameter'], config['parameter'], logger=log)
 
-print('See etc/serve.sh for command to serve table.')
+print('See etc/serve-table.sh for command to serve table.')

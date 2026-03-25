@@ -14,16 +14,13 @@
       "columnDropdowns": true,
       "columnRender": "renderAll",
       "columnOptions": [
-        {
-          "name": "server",
-          "width": "5em",
-          "title": "<i>Server</i>",
-          "description": "The server hosting the dataset"
-        },
+        {"name": "server", "width": "5em"},
         {"name": "dataset"},
         {"name": "title", "render": {"function": "ellipsis", "args": [20]}},
         {"name": "contact", "render": {"function": "ellipsis", "args": [20]}},
         {"name": "description", "render": {"function": "ellipsis", "args": [20]}},
+        {"name": "x_startDate", "render": {"function": "constrainedSearch"}, "description": "Normalized start date to enable search with constraints of =, >, etc. (The startDate column can only be searched for patterns.)This column is generated and not found in source metadata."},
+        {"name": "x_stopDate", "render": {"function": "constrainedSearch"}, "description": "Normalized stop date to enable search with constraints of =, >, etc. (The stopDate column can only be searched for patterns.) This column is generated and not found in source metadata."},
         {"name": "cadence", "width": "6em"},
         {"name": "resourceURL", "render": "trimURL"},
         {"name": "citation", "render": "trimURL"},
@@ -54,6 +51,8 @@
         {"name": "length", "width": "3em"},
         {"name": "type", "width": "3em"},
         {"name": "size", "width": "3em"},
+        {"name": "startDate", "dropdown": false, "search": false},
+        {"name": "stopDate", "dropdown": false, "search": false},
         {"name": "cadence", "width": "4em"},
         {"name": "description", "render": {"function": "ellipsis", "args": [20]}},
         {"name": "units", "width": "5em"},
