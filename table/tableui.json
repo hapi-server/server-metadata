@@ -26,7 +26,21 @@
         {"name": "citation", "render": "trimURL"},
         {"name": "datasetCitation", "render": "trimURL"},
         {"name": "additionalMetadata", "render": {"function": "ellipsis", "args": [20]}},
-        {"name": "x_nParams", "width": "4em", "type": "integer"}
+        {"name": "x_nParams", "width": "4em", "type": "integer", "description": "Number of parameters in dataset. This column is generated and not found in source metadata."},
+        {"name": "x_LastUpdate", "description": "Date of last update to dataset metadata. This column is generated and not found in source metadata."},
+        {
+          "name": "resourceID",
+          "render": {
+            "function": "renderLink",
+            "args": {
+              "modify": {
+                "remove": "spase://",
+                "replace": "http://spase-metadata.org/"
+              },
+              "trim": "http://spase-metadata.org/"
+            }
+          }
+        }
       ]
     }
   },
@@ -51,8 +65,10 @@
         {"name": "length", "width": "3em"},
         {"name": "type", "width": "3em"},
         {"name": "size", "width": "3em"},
-        {"name": "startDate", "dropdown": false, "search": false},
-        {"name": "stopDate", "dropdown": false, "search": false},
+        {"name": "startDate", "description": "Start date of parameter data."},
+        {"name": "stopDate", "description": "Start date of parameter data."},
+        {"name": "x_startDate", "render": {"function": "constrainedSearch"}, "description": "Normalized start date to enable search with constraints of =, >, etc. (The startDate column can only be searched for patterns.)This column is generated and not found in source metadata."},
+        {"name": "x_stopDate", "render": {"function": "constrainedSearch"}, "description": "Normalized stop date to enable search with constraints of =, >, etc. (The stopDate column can only be searched for patterns.) This column is generated and not found in source metadata."},
         {"name": "cadence", "width": "4em"},
         {"name": "description", "render": {"function": "ellipsis", "args": [20]}},
         {"name": "units", "width": "5em"},

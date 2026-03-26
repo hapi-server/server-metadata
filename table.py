@@ -31,7 +31,6 @@ def format_bins(bins):
   for idx, bin in enumerate(bins):
     for key in bin:
       key_new = f"bins[{idx}]/{key}"
-      print(bin)
       if isinstance(bin[key], list):
         bins_new[key_new] = ellipsis(bin[key])
       else:
@@ -113,7 +112,7 @@ def compute_rows(all_file, servers=None, omits=[]):
         }
 
         if 'bins' in parameter:
-          if isinstance('bins', list):
+          if isinstance(parameter['bins'], list):
             try:
               parameter['bins'] = format_bins(parameter['bins'])
             except Exception as e:
