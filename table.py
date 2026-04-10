@@ -135,9 +135,9 @@ servers = cli() # None => all servers
 
 rows = compute_rows(file, omits=omits, servers=servers)
 
-p = [utilrsw.script_info()['dir'], 'table', 'dict2sql.json']
+p = [utilrsw.script_info()['dir'], 'table', 'dicts2table.json']
 config = utilrsw.read(os.path.join(*p))
-tableui.dict2sql(rows['dataset'], config['dataset'], logger=log)
-tableui.dict2sql(rows['parameter'], config['parameter'], logger=log)
+tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)
+tableui.dicts2table(rows['parameter'], config['parameter'], logger=log)
 
 print('See etc/serve-table.sh for command to serve table.')
