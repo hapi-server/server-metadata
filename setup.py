@@ -9,17 +9,8 @@ install_requires = [
   "isodate"
 ]
 
-try:
-  # Will work if utilrsw was already installed, for example via pip install -e .
-  import utilrsw
-except:
-  install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw")
-
-try:
-  # Will work if tableui was already installed, for example via pip install -e .
-  import tableui
-except:
-  install_requires.append("tableui @ git+https://github.com/rweigel/table-ui")
+install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw")
+install_requires.append("tableui @ git+https://github.com/rweigel/table-ui")
 
 
 version = json.load(open('hapimeta/version.json'))['version']
