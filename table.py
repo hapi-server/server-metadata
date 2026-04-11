@@ -140,4 +140,5 @@ config = utilrsw.read(os.path.join(*p))
 tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)
 tableui.dicts2table(rows['parameter'], config['parameter'], logger=log)
 
-print('See etc/serve-table.sh for command to serve table.')
+log.info("Note: Table web app can be started on command line if tables already exist using")
+log.info("  tableui-serve --config table/tableui.json")
