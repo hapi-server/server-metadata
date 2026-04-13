@@ -9,9 +9,8 @@ install_requires = [
   "isodate"
 ]
 
-install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw")
-install_requires.append("tableui @ git+https://github.com/rweigel/table-ui")
-
+install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw@main")
+install_requires.append("tableui @ git+https://github.com/rweigel/table-ui@main")
 
 version = json.load(open('hapimeta/version.json'))['version']
 setup(
