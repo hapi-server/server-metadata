@@ -4,9 +4,12 @@ from setuptools import setup, find_packages
 install_requires = [
   "hapiplot",
   "hapiclient",
+  "datetick",
+  "lxml",
   "deepdiff",
   "GitPython",
-  "isodate"
+  "isodate",
+  "rdflib"
 ]
 
 install_requires.append("utilrsw[net] @ git+https://github.com/rweigel/utilrsw@main")

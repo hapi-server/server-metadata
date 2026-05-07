@@ -8,15 +8,15 @@ import datetime
 import utilrsw
 
 import hapiclient
+import hapimeta
 
-from hapimeta import logger_kwargs, data_dir
 from hapiplot import hapiplot
 
-log = utilrsw.logger(**logger_kwargs)
+log = hapimeta.logger('samples')
 
 savefig_fmts      = ['svg', 'png']
-out_dir           = os.path.join(data_dir, 'availability')
-catalogs_all_file = os.path.join(data_dir, 'catalogs-all.pkl')
+out_dir           = os.path.join(hapimeta.DATA_DIR, 'availability')
+catalogs_all_file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
 
 def cli():
   clkws = {

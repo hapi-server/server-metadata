@@ -1,9 +1,15 @@
 import utilrsw
+
 import hapimeta
 
 log = hapimeta.logger('abouts')
+cfg = hapimeta.config('abouts')
 
-def abouts(cfg, simulate=False):
+def run():
+  servers_only = hapimeta.cli()
+  abouts(servers_only)
+
+def abouts(servers_only=None):
 
   utilrsw.git.clone_or_pull(cfg['repo_dir'], cfg['repo_url'], logger=log)
 
@@ -14,21 +20,19 @@ def abouts(cfg, simulate=False):
     kwargs = {
       "timeout": cfg['timeout'],
       "retries": cfg['retries'],
-      "simulate": simulate
+      "simulate": cfg['simulate'],
     }
-    updated = _update(cfg['servers'], last, default, **kwargs)
+    updated = _update(servers_only, last, default, **kwargs)
     _write(updated, last)
 
   _write_legacy()
 
-  if cfg['servers'] is None:
-    # Only push if updating all servers
+  if servers_only is None:
     msg = "Update abouts.json, all.txt, all_.txt [skip ci]"
     utilrsw.git.push(cfg['repo_dir'], cfg['repo_url'], msg, logger=log)
 
 
 def _dict_diff(old, new, ignore=None):
-  """Return the difference between two dicts, optionally ignoring certain keys."""
   import json
   import deepdiff
 
@@ -56,17 +60,16 @@ def _update(servers, lasts_fname, defaults_fname,
   log.info(f"Reading default abouts.json from {defaults_fname}")
   try:
     defaults = utilrsw.read(defaults_fname)
-  except Exception as e:
-    log.error(f"Cannot continue. Error reading {defaults_fname}: {e}")
+  except Exception as exc:
+    log.error(f"Cannot continue. Error reading {defaults_fname}: {exc}")
     exit(1)
 
   log.info(f"Reading last abouts.json from {lasts_fname}")
   try:
     lasts = utilrsw.read(lasts_fname)
-    # Convert array of dicts to dict of dicts keyed by x_url
     lasts_dict = utilrsw.array_to_dict(lasts, key='x_url')
-  except Exception as e:
-    emsg = f"Error reading {lasts_fname} {e}. "
+  except Exception as exc:
+    emsg = f"Error reading {lasts_fname} {exc}. "
     emsg += f"Will use contents of {defaults_fname}"
     log.error(emsg)
     return defaults
@@ -90,8 +93,8 @@ def _update(servers, lasts_fname, defaults_fname,
         "log": log
       }
       new = hapimeta.get(default['x_url'] + '/about', **kwargs)
-    except Exception as e:
-      x_LastUpdateError = str(e)
+    except Exception as exc:
+      x_LastUpdateError = str(exc)
 
     code = utilrsw.get_path(new, ["status", "code"])
     if code is not None and int(code) != 1200:
@@ -106,12 +109,9 @@ def _update(servers, lasts_fname, defaults_fname,
     last = lasts_dict.get(default['x_url'], {})
 
     if simulate and 'contact' in last:
-      # Simulate server having contact field that differs from the last about
-      # generated based on default, last, and new.
       new['contact'] = last['contact'] + "x"
 
     if simulate:
-      # Simulate a default being updated.
       import random
       default['title'] = f"{last.get('title', '')}{random.random()}"
 
@@ -182,7 +182,6 @@ def _write_legacy():
   log.info(f"Writing {fname}")
   utilrsw.write(fname, abouts_all_str)
 
-
   dev = utilrsw.read('servers/abouts-dev.json')
 
   abouts_all_str = to_string(dev + test, style='detailed')
@@ -195,17 +194,14 @@ def _write(abouts, fname):
 
   import os
 
-  # Update repo file
   log.info(f"Writing {fname}")
   utilrsw.write(fname, abouts)
 
-  # Update file that is copied to https://hapi-server.org/meta/
   fname = os.path.basename(fname)
-  fname = os.path.join(hapimeta.data_dir, fname)
+  fname = os.path.join(hapimeta.DATA_DIR, fname)
   log.info(f"Writing {fname}")
   utilrsw.write(fname, abouts)
 
 
-if __name__ == "__main__":
-  cfg = hapimeta.config('about')
-  abouts(cfg, simulate=False)
+if __name__ == '__main__':
+  run()

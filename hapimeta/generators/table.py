@@ -5,12 +5,15 @@ import utilrsw
 import tableui
 
 import hapiclient
-from hapimeta import logger, data_dir, cli
 
-log = logger('table')
+import hapimeta
+
+cfg = hapimeta.config('table')
+
+log = hapimeta.logger('table')
+
 
 def reorder_keys(d):
-  # move keys starting with 'x_' to the end, preserving relative order
   x_items = [(k, d[k]) for k in d.keys() if k.startswith('x_')]
   other_items = [(k, d[k]) for k in d.keys() if not k.startswith('x_')]
   newd = {}
@@ -30,7 +33,7 @@ def format_bins(bins):
   bins_new = {}
   for idx, bin in enumerate(bins):
     for key in bin:
-      key_new = f"bins[{idx}]/{key}"
+      key_new = f'bins[{idx}]/{key}'
       if isinstance(bin[key], list):
         bins_new[key_new] = ellipsis(bin[key])
       else:
@@ -46,8 +49,8 @@ def normalize_datetime(time_str):
     if dt.tzinfo is None:
       dt = dt.replace(tzinfo=datetime.timezone.utc)
     return dt.strftime('%Y-%m-%dT%H:%M:%S.%f') + 'Z'
-  except Exception as e:
-    log.error(f"Error normalizing time: {time_str}. Error: {e}")
+  except Exception as exc:
+    log.error(f'Error normalizing time: {time_str}. Error: {exc}')
     return None
 
 
@@ -65,11 +68,11 @@ def compute_rows(all_file, servers=None, omits=[]):
     if servers_keep is not None and server not in servers_keep:
       continue
 
-    log.info(f"Processing server: {server}")
+    log.info(f'Processing server: {server}')
 
     catalog = utilrsw.get_path(servers[server], 'catalog/catalog', sep='/')
     if catalog is None:
-      log.error(f"Could not find catalog for server: {server}. Skipping server.")
+      log.error(f'Could not find catalog for server: {server}. Skipping server.')
       continue
 
     for dataset in catalog:
@@ -85,7 +88,7 @@ def compute_rows(all_file, servers=None, omits=[]):
 
       parameters = utilrsw.get_path(dataset, ['info', 'parameters'])
       if parameters is None:
-        msg = "Could not find parameters for dataset: "
+        msg = 'Could not find parameters for dataset: '
         msg += f"{server}/{dataset['dataset']}. Skipping dataset."
         log.error(msg)
         continue
@@ -101,13 +104,13 @@ def compute_rows(all_file, servers=None, omits=[]):
         if 'units' in parameter and parameter['units'] is None:
           parameter['units'] = ''
         parameter = {
-          "server": server,
-          "dataset": dataset['dataset'],
-          "startDate": startDate,
-          "x_startDate": normalize_datetime(startDate),
-          "stopDate": stopDate,
-          "x_stopDate": normalize_datetime(stopDate),
-          "cadence": utilrsw.get_path(dataset, 'info.cadence', ''),
+          'server': server,
+          'dataset': dataset['dataset'],
+          'startDate': startDate,
+          'x_startDate': normalize_datetime(startDate),
+          'stopDate': stopDate,
+          'x_stopDate': normalize_datetime(stopDate),
+          'cadence': utilrsw.get_path(dataset, 'info.cadence', ''),
           **parameter
         }
 
@@ -115,9 +118,9 @@ def compute_rows(all_file, servers=None, omits=[]):
           if isinstance(parameter['bins'], list):
             try:
               parameter['bins'] = format_bins(parameter['bins'])
-            except Exception as e:
-              msg = "Error formatting bins for parameter: "
-              msg += f"{server}/{dataset['dataset']}/{parameter['parameter']}. Error: {e}"
+            except Exception as exc:
+              msg = 'Error formatting bins for parameter: '
+              msg += f"{server}/{dataset['dataset']}/{parameter['parameter']}. Error: {exc}"
               log.error(msg)
 
         row = utilrsw.flatten_dicts(parameter, simplify=True)
@@ -129,16 +132,17 @@ def compute_rows(all_file, servers=None, omits=[]):
   return rows
 
 
-file = os.path.join(data_dir, 'catalogs-all.pkl')
-omits = ['info/HAPI', 'info/status', 'info/definitions']
-servers = cli() # None => all servers
+def run():
+  file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
+  omits = cfg['omits']
+  servers = hapimeta.cli()
 
-rows = compute_rows(file, omits=omits, servers=servers)
+  rows = compute_rows(file, omits=omits, servers=servers)
 
-p = [utilrsw.script_info()['dir'], 'table', 'dicts2table.json']
-config = utilrsw.read(os.path.join(*p))
-tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)
-tableui.dicts2table(rows['parameter'], config['parameter'], logger=log)
+  config = cfg['dicts2table']
+  tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)
+  tableui.dicts2table(rows['parameter'], config['parameter'], logger=log)
 
-log.info("Note: Table web app can be started on command line if tables already exist using")
-log.info("  tableui-serve --config table/tableui.json")
+
+if __name__ == '__main__':
+  run()

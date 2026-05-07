@@ -9,7 +9,6 @@
       "Availability": "Online",
       "AccessRights": "Open",
       "Format": ["CSV", "Binary", "JSON"],
-      "Encoding": ["ASCII", "None"],
       "Acknowledgement": "",
       "AccessURL": {
         "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
