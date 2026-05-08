@@ -12,9 +12,7 @@ This repository contains code that requests all metadata from all HAPI servers d
 
 # Development
 
-Generator modules now live under `hapimeta.generators`. Compatibility aliases such as `hapimeta.spase` are still available for existing imports.
-
-See `etc/crontab.sh` for commands that are executed nightly.
+See `etc/crontab.py` for commands that are executed nightly.
 
 For testing changes to the table configuration using the nightly generated metadata, use
 

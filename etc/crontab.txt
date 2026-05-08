@@ -1,2 +1,1 @@
-# crontab.sh writes stdout to data/crontab/crontab-DATE.log
-22 3 * * * cd ~/git/hapi/server-metadata/; /bin/zsh -i etc/crontab.sh
+22 3 * * * cd ~/git/hapi/server-metadata/etc/; sh crontab.sh
