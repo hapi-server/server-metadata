@@ -6,8 +6,10 @@ log = hapimeta.logger('abouts')
 cfg = hapimeta.config('abouts')
 
 def run():
-  servers_only = hapimeta.cli()
-  abouts(servers_only)
+  args = hapimeta.cli()
+  servers = args.servers
+  log.info(f"Generating abouts for {servers}")
+  abouts(servers)
 
 def abouts(servers_only=None):
 
@@ -78,7 +80,6 @@ def _update(servers, lasts_fname, defaults_fname,
   for default in defaults:
 
     if servers is not None and default['id'] not in servers:
-      log.info(f"Skipping {default['id']}.")
       continue
 
     log.info("")

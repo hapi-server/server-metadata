@@ -1,34 +1,22 @@
-import os
 import sys
 import importlib
 
 import hapimeta
 
 
-def commands():
-  generators_dir = os.path.join(os.path.dirname(__file__), 'hapimeta', 'generators')
-  command_names = []
-  for name in os.listdir(generators_dir):
-    if not name.endswith('.py'):
-      continue
-    if name == '__init__.py':
-      continue
-    command_names.append(name[:-3])
-  return sorted(command_names)
-
-
 def main():
-  available_commands = commands()
-  command, servers = hapimeta.cli(available_commands)
-  if command is None:
-    command_names = available_commands
+  args = hapimeta.cli()
+  if args.command is None:
+    command_names = importlib.import_module('hapimeta.cli').commands()
   else:
-    command_names = [command]
+    command_names = [args.command]
 
   for command_name in command_names:
     sys.argv = [sys.argv[0]]
-    if servers is not None:
-      sys.argv.append(','.join(servers))
+    if args.servers is not None:
+      sys.argv.extend(['--servers', ','.join(args.servers)])
+    if args.use_remote_catalog:
+      sys.argv.append('--use-remote-catalog')
     module_name = f'hapimeta.generators.{command_name}'
     module = importlib.import_module(module_name)
     module.run()

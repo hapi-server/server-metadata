@@ -1,4 +1,4 @@
-from hapimeta.version import version
+import hapimeta
 
 
 def get(url, log=None, timeout=20, retries=3, indent=''):
@@ -14,7 +14,7 @@ def get(url, log=None, timeout=20, retries=3, indent=''):
   retries = Retry(total=retries, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
 
   log.info(f'{indent}Getting {url}')
-  user_agent = f'hapibot-mirror/{version()}; '
+  user_agent = f'hapibot-mirror/{hapimeta.__version__}; '
   user_agent += 'https://github.com/hapi-server/data-specification/wiki/hapi-bots.md#hapibot-mirror'
   headers = {'User-Agent': user_agent}
   session = requests.Session()

@@ -1,26 +1,20 @@
-# Usage: python run.py relations
+# Usage: python run.py relations [WDC, INTERMAGNET]
 
 from rdflib import Graph, Namespace, URIRef
-from rdflib.namespace import RDF, DCAT, DCTERMS
 
 import hapimeta
-
-SUPPORTED_SERVERS = ('INTERMAGNET', 'WDC')
-
-HAPI = Namespace("http://hapi-server.org/rdf#")
 
 log = hapimeta.logger('relations')
 cfg = hapimeta.config('relations')
 
-
-def relations(server_id, observatory=None):
+def relations(server_id, catalogs_all, observatory=None):
   if server_id == 'INTERMAGNET':
     url = 'https://imag-data.bgs.ac.uk/GIN_V1/hapi'
 
   if server_id == 'WDC':
     url = 'https://wdcapi.bgs.ac.uk/hapi'
 
-  catalog = _catalog(server_id)
+  catalog = _catalog(server_id, catalogs_all)
   if catalog is None:
     log.error(f'Failed to load catalog for server {server_id}')
     return
@@ -34,9 +28,12 @@ def relations(server_id, observatory=None):
 
   observatories = _observatories(dataset_ids, server_id)
   if observatory is not None:
+    if observatory not in observatories:
+      log.error(f'Observatory {observatory} not found for server {server_id}')
+      return
     import utilrsw
-    log.info(f'Processing only {server_id}/{observatory}:')
-    utilrsw.print_dict(observatories, indent=2)
+    log.info(f'Processing only {server_id}/{observatory}')
+    log.info(utilrsw.format_dict(observatories, indent=2))
 
   g = Graph()
 
@@ -54,16 +51,18 @@ def relations(server_id, observatory=None):
   _write(g, server_id, observatory=observatory)
 
 
-def _catalog(server_id):
-  import os
+def _catalog(server_id, catalogs_all):
   import utilrsw
 
   log.info('Reading and preparing catalog.')
 
-  catalog_file = os.path.join(hapimeta.DATA_DIR, 'catalog', f'{server_id}-all.json')
-  catalog = utilrsw.read(catalog_file)
+  if server_id not in catalogs_all:
+    log.error(f"Server '{server_id}' not found in catalogs-all data")
+    return None
+
+  catalog = catalogs_all[server_id]
   if 'catalog' not in catalog:
-    log.error(f"Catalog file {catalog_file} does not contain 'catalog' key")
+    log.error(f"Catalog for server '{server_id}' does not contain 'catalog' key")
     return None
 
   catalog = utilrsw.array_to_dict(catalog['catalog'], 'id')
@@ -94,14 +93,14 @@ def _observatories(dataset_ids, server_id):
     parts = dataset_id.split('/')
     if server_id == 'INTERMAGNET':
       if len(parts) != 4:
-        print(f'Skipping dataset ID with missing part: {dataset_id}')
+        log.info(f'Skipping dataset ID with missing part: {dataset_id}')
         continue
 
       observatory, quality, cadence, frame = parts
 
     if server_id == 'WDC':
       if len(parts) != 3:
-        print(f'Skipping dataset ID with missing part: {dataset_id}')
+        log.info(f'Skipping dataset ID with missing part: {dataset_id}')
         continue
 
       observatory, cadence, frame = parts
@@ -122,29 +121,29 @@ def _observatories(dataset_ids, server_id):
 
 
 def _head(g, url):
-  g.bind('hapi', HAPI)
-  g.bind('dcat', DCAT)
+  g.bind('hapi', _namespace('HAPI'))
+  g.bind('dcat', _namespace('DCAT'))
   g.base = URIRef(url)
 
 
 def _provides(g, dataset_ids):
-  g.add((g.base, RDF.type, HAPI.Service))
+  g.add((g.base, _namespace('RDF').type, _namespace('HAPI').Service))
   for dataset_id in dataset_ids:
     uri_ref = f'/info?dataset={dataset_id}'
-    g.add((g.base, DCAT.servesDataset, URIRef(uri_ref)))
+    g.add((g.base, _namespace('DCAT').servesDataset, URIRef(uri_ref)))
 
-  g.add((g.base, DCAT.endpointURL, g.base))
+  g.add((g.base, _namespace('DCAT').endpointURL, g.base))
 
 
 def _definitions(g, dataset_ids, catalog):
   for dataset_id in dataset_ids:
     uri_dataset = URIRef(f'/info?dataset={dataset_id}')
-    g.add((uri_dataset, RDF.type, HAPI.Dataset))
+    g.add((uri_dataset, _namespace('RDF').type, _namespace('HAPI').Dataset))
     for i, parameter in enumerate(catalog[dataset_id]['parameters']):
       uri_parameter = URIRef(f'{str(uri_dataset)}#{parameter}')
-      param_type = HAPI.Time if i == 0 else HAPI.Parameter
-      g.add((uri_parameter, RDF.type, param_type))
-      g.add((uri_dataset, HAPI.hasParameter, uri_parameter))
+      param_type = _namespace('HAPI').Time if i == 0 else _namespace('HAPI').Parameter
+      g.add((uri_parameter, _namespace('RDF').type, param_type))
+      g.add((uri_dataset, _namespace('HAPI').hasParameter, uri_parameter))
 
 
 def _cadence_relations(g, dataset_ids_parts, catalog, server_id):
@@ -187,8 +186,8 @@ def _cadence_relations(g, dataset_ids_parts, catalog, server_id):
 
           uri_resample = URIRef(f'/info?dataset={id_resample}')
           uri_source = URIRef(f'/info?dataset={id_source}')
-          g.add((uri_resample, HAPI.resamplingMethod, HAPI.average))
-          g.add((uri_resample, HAPI.isResampledOf, uri_source))
+          g.add((uri_resample, _namespace('HAPI').resamplingMethod, _namespace('HAPI').average))
+          g.add((uri_resample, _namespace('HAPI').isResampledOf, uri_source))
 
 
 def _quality_relations(g, dataset_ids_parts):
@@ -209,7 +208,7 @@ def _quality_relations(g, dataset_ids_parts):
         for frame in dataset_ids_parts[observatory]['frames']:
           uri1 = URIRef(f'/info?dataset={observatory}/{quality}/{cadence}/{frame}')
           uri2 = URIRef(f'/info?dataset={observatory}/{base_quality}/{cadence}/{frame}')
-          g.add((uri1, DCTERMS.isVersionOf, uri2))
+          g.add((uri1, _namespace('DCTERMS').isVersionOf, uri2))
 
 
 def _frame_relations(g, dataset_ids_parts, catalog, server_id):
@@ -250,7 +249,22 @@ def _frame_relations(g, dataset_ids_parts, catalog, server_id):
 
           uri1 = URIRef(f'/info?dataset={dataset_id_1}#Field_Vector')
           uri2 = URIRef(f'/info?dataset={dataset_id_2}#Field_Vector')
-          g.add((uri1, HAPI.isReferenceFrameTransformOf, uri2))
+          g.add((uri1, _namespace('HAPI').isReferenceFrameTransformOf, uri2))
+
+
+def _namespace(namespace_name):
+  from functools import lru_cache
+  @lru_cache(maxsize=None)
+  def get_namespace(namespace_name):
+    from rdflib.namespace import RDF, DCAT, DCTERMS
+    namespaces = {
+      'RDF': RDF,
+      'DCAT': DCAT,
+      'DCTERMS': DCTERMS,
+      'HAPI': Namespace("http://hapi-server.org/rdf#"),
+    }
+    return namespaces[namespace_name]
+  return get_namespace(namespace_name)
 
 
 def _write(g, server_id, observatory=None):
@@ -277,24 +291,24 @@ def _write(g, server_id, observatory=None):
   g.serialize(destination=f'{basename}.ttl', **turtle_kwargs)
   g.serialize(destination=f'{basename}.jsonld', **jsonld_kwargs)
 
-  print(f'Conversion complete. Output written to {basename}.{{ttl, jsonld}}')
+  log.info(f'Conversion complete. Output written to {basename}.{{ttl, jsonld}}')
 
 
 def run():
-  servers = hapimeta.cli()
-
+  args = hapimeta.cli()
+  servers = args.servers
+  catalogs_all, _ = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
   if servers is None:
-    for server in SUPPORTED_SERVERS:
-      relations(server, cfg['observatory'])
-      relations(server)
-    return
+    servers = list(catalogs_all.keys())
+
+  log.info(f'Generating relations for {servers}')
 
   for server in servers:
-    if server not in SUPPORTED_SERVERS:
-      log.info(f'Skipping unsupported server {server}.')
+    if server not in ('INTERMAGNET', 'WDC'):
+      log.info(f'No relations for server {server}.')
       continue
-    relations(server)
-
+    relations(server, catalogs_all, observatory="aae")
+    #relations(server)
 
 if __name__ == '__main__':
   run()

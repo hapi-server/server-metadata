@@ -41,7 +41,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
   import matplotlib.pyplot as plt
   plt.rcParams['svg.fonttype'] = 'none'
-  plt.rcParams['font.family'] = 'times new roman'
+  plt.rcParams['font.family'] = ['Times New Roman', 'DejaVu Sans']
 
   import datetick
 
@@ -399,10 +399,9 @@ def process_server(server, catalog_all):
 
 
 def run():
-  catalogs_all_file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
-  catalogs_all = utilrsw.read(catalogs_all_file)
-
-  servers_only = hapimeta.cli()
+  args = hapimeta.cli()
+  servers_only = args.servers
+  catalogs_all, catalogs_all_file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
   if servers_only:
     log.info(f'Generating availability for {servers_only}')
   else:

@@ -60,17 +60,17 @@ def spase(server_id, server_meta):
 
 def run():
 
-  servers_keep = hapimeta.cli()
+  args = hapimeta.cli()
+  servers_only = args.servers
 
-  catalogs_all_file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
-  log.info(f'Reading {catalogs_all_file}')
-  servers = utilrsw.read(catalogs_all_file)
+  log.info(f'Generating SPASE for {servers_only}')
+  servers, catalogs_all_file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
 
   for server_id in servers.keys():
-    if servers_keep is not None and server_id not in servers_keep:
+    if servers_only is not None and server_id not in servers_only:
       continue
 
-    log.info(f'Processing server: {server_id}')
+    log.info(f'{server_id}')
 
     spase(server_id, servers[server_id])
 

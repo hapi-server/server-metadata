@@ -1,17 +1,29 @@
 import hapimeta
 
 
-def cli(commands=None):
+def commands():
+  import pkgutil
+  import hapimeta.generators
+
+  command_names = []
+  for module_info in pkgutil.iter_modules(hapimeta.generators.__path__):
+    if module_info.name == '__init__':
+      continue
+    command_names.append(module_info.name)
+  return sorted(command_names)
+
+
+def cli():
   # Usage
-  #    python run.py [generator] [server1,server2,...]
+  #    python run.py [generator] [--servers server1,server2,...]
   # where generator is one of abouts, catalogs, availabilities, table,
 
-  import argparse
   import os
+  import argparse
+
   import utilrsw
 
-  if commands is not None:
-    commands = tuple(commands)
+  available_commands = tuple(commands())
 
   servers_help = 'Comma-separated list of server IDs'
   catalogs_file = os.path.join(hapimeta.DATA_DIR, 'catalogs.pkl')
@@ -24,44 +36,37 @@ def cli(commands=None):
 
   parser = argparse.ArgumentParser(
     description='Process metadata for all servers or a comma-separated subset.',
-    epilog='Examples:\n  python run.py\n  python run.py abouts\n  python run.py abouts server1,server2\n  python run.py server1,server2',
+    epilog='Examples:\n  python run.py\n  python run.py abouts\n  python run.py abouts --servers server1,server2\n  python run.py --servers server1,server2',
     formatter_class=argparse.RawDescriptionHelpFormatter,
   )
-  if commands is not None:
-    command_list = ', '.join(commands)
-    parser.add_argument(
-      'command',
-      nargs='?',
-      default=None,
-      metavar='command',
-      help=f'Task to run. Choices: {command_list}',
-    )
+  command_list = ', '.join(available_commands)
   parser.add_argument(
-    'servers',
+    'command',
     nargs='?',
     default=None,
+    metavar='command',
+    help=f'Task to run. Choices: {command_list}',
+  )
+
+  parser.add_argument(
+    '--servers',
+    default=None,
     help=servers_help,
+  )
+  parser.add_argument(
+    '--use-remote-catalog',
+    action='store_true',
+    help='Use https://hapi-server.org/meta/catalog-all.pkl instead of DATA_DIR/catalogs-all.pkl',
   )
 
   args, _ = parser.parse_known_args()
 
-  if commands is not None:
-    command = args.command
-    if command is not None and command not in commands:
-      if args.servers is not None:
-        parser.error(f'Unknown command: {command}')
-      args.servers = command
-      command = None
-  else:
-    command = None
+  if args.command is not None and args.command not in available_commands:
+    parser.error(f'Unknown command: {args.command}')
 
   if args.servers is None:
-    if commands is not None:
-      return command, None
-    return None
+    args.servers = None
+    return args
 
-  servers = [server.strip() for server in args.servers.split(',') if server.strip()]
-  print(f'Processing servers: {servers}')
-  if commands is not None:
-    return command, servers
-  return servers
+  args.servers = [server.strip() for server in args.servers.split(',') if server.strip()]
+  return args

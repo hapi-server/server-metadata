@@ -1,4 +1,3 @@
-import os
 import datetime
 
 import utilrsw
@@ -68,7 +67,7 @@ def compute_rows(all_file, servers=None, omits=[]):
     if servers_keep is not None and server not in servers_keep:
       continue
 
-    log.info(f'Processing server: {server}')
+    log.info(f'Generating table for {server}')
 
     catalog = utilrsw.get_path(servers[server], 'catalog/catalog', sep='/')
     if catalog is None:
@@ -133,9 +132,10 @@ def compute_rows(all_file, servers=None, omits=[]):
 
 
 def run():
-  file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
+  args = hapimeta.cli()
+  servers = args.servers
+  _, file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
   omits = cfg['omits']
-  servers = hapimeta.cli()
 
   rows = compute_rows(file, omits=omits, servers=servers)
 

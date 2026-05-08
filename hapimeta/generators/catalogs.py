@@ -202,7 +202,8 @@ def write(file_name, data, pkl=False):
 
 
 def run():
-  servers_only = hapimeta.cli()
+  args = hapimeta.cli()
+  servers_only = args.servers
   max_datasets = 1 if cfg['debug'] else cfg['max_datasets']
   endpoints = {}
   log.info(40*'-')
