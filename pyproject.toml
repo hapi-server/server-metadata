@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hapimeta"
-version = "0.0.1"
+version = "0.0.2"
 description = "A package for metadata from HAPI servers."
 readme = "README.md"
 authors = [
