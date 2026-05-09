@@ -296,7 +296,7 @@ def html(files, server_dir, server):
     write(fname, html_content_png)
 
 
-def process_server(server, catalog_all):
+def process_server(server, catalog_all, max_datasets=None):
 
   def extract_time(info, key):
     if key not in info:
@@ -333,6 +333,9 @@ def process_server(server, catalog_all):
   if datasets is None:
     log.info(f'{server}: No datasets found in catalog')
     return None
+
+  if max_datasets is not None:
+    datasets = datasets[:max_datasets]
 
   log.info(f'{server}: {len(datasets)} datasets')
   for dataset in datasets:
@@ -401,25 +404,28 @@ def process_server(server, catalog_all):
 def run():
   args = hapimeta.cli()
   servers_only = args.servers
-  catalogs_all, catalogs_all_file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
+  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
   if servers_only:
     log.info(f'Generating availability for {servers_only}')
   else:
-    log.info(f'Generating availability for all servers in {catalogs_all_file}')
+    log.info('Generating availability for all servers')
 
   servers = []
-  for server in catalogs_all.keys():
+  for server in all.keys():
     if servers_only is not None and server not in servers_only:
       continue
     servers.append(server)
 
+  if servers_only is None and args.n_servers is not None:
+    servers = servers[:args.n_servers]
+
   if len(servers) == 0:
-    log.error(f'No servers to process. Possible servers: {catalogs_all.keys()}')
+    log.error(f'No servers to process. Possible servers: {all.keys()}')
     exit(1)
 
   dfs = []
   for server in servers:
-    df = process_server(server, catalogs_all[server])
+    df = process_server(server, all[server], max_datasets=args.n_datasets)
     hapimeta.error.write(server, 'availabilities', log)
     dfs.append(df)
 

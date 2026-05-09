@@ -6,7 +6,7 @@ import hapimeta
 cfg = hapimeta.config('spase')
 log = hapimeta.logger('spase')
 
-def spase(server_id, server_meta):
+def spase(server_id, server_meta, max_datasets=None):
 
   Spase = _spase_stub()
 
@@ -14,6 +14,9 @@ def spase(server_id, server_meta):
   if catalog is None:
     log.error(f"No catalog found for server '{server_id}' in catalogs-all.pkl. Skipping server.")
     return
+
+  if max_datasets is not None:
+    catalog = catalog[:max_datasets]
 
   log.info(f'  {len(catalog)} datasets')
 
@@ -64,15 +67,18 @@ def run():
   servers_only = args.servers
 
   log.info(f'Generating SPASE for {servers_only}')
-  servers, catalogs_all_file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
+  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
 
-  for server_id in servers.keys():
-    if servers_only is not None and server_id not in servers_only:
-      continue
+  servers = list(all.keys())
+  if servers_only is not None:
+    servers = [server_id for server_id in servers if server_id in servers_only]
+  elif args.n_servers is not None:
+    servers = servers[:args.n_servers]
 
+  for server_id in servers:
     log.info(f'{server_id}')
 
-    spase(server_id, servers[server_id])
+    spase(server_id, all[server_id], max_datasets=args.n_datasets)
 
 
 def _spase_stub():

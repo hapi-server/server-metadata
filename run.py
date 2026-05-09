@@ -15,6 +15,10 @@ def main():
     sys.argv = [sys.argv[0]]
     if args.servers is not None:
       sys.argv.extend(['--servers', ','.join(args.servers)])
+    if args.n_servers is not None:
+      sys.argv.extend(['--n-servers', str(args.n_servers)])
+    if args.n_datasets is not None:
+      sys.argv.extend(['--n-datasets', str(args.n_datasets)])
     if args.use_remote_catalog:
       sys.argv.append('--use-remote-catalog')
     module_name = f'hapimeta.generators.{command_name}'

@@ -1,6 +1,8 @@
 {
   "common": {
-    "DATA_DIR": "data"
+    "DATA_DIR": "data",
+    "LOCAL_ALL": "catalogs-all.pkl",
+    "REMOTE_ALL": "https://hapi-server.org/meta/catalog-all.pkl"
   },
   "abouts": {
     "repo_url": "https://github.com/hapi-server/servers",

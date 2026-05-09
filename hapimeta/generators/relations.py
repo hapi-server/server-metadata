@@ -7,21 +7,25 @@ import hapimeta
 log = hapimeta.logger('relations')
 cfg = hapimeta.config('relations')
 
-def relations(server_id, catalogs_all, observatory=None):
+def relations(server_id, all, observatory=None, max_datasets=None):
   if server_id == 'INTERMAGNET':
     url = 'https://imag-data.bgs.ac.uk/GIN_V1/hapi'
 
   if server_id == 'WDC':
     url = 'https://wdcapi.bgs.ac.uk/hapi'
 
-  catalog = _catalog(server_id, catalogs_all)
+  catalog = _catalog(server_id, all)
   if catalog is None:
     log.error(f'Failed to load catalog for server {server_id}')
     return
 
   dataset_ids = catalog.keys()
+  if max_datasets is not None:
+    dataset_ids = list(dataset_ids)[:max_datasets]
   if observatory is not None:
     dataset_ids = [id for id in catalog.keys() if id.startswith(observatory)]
+    if max_datasets is not None:
+      dataset_ids = dataset_ids[:max_datasets]
     log.info(f'Found {len(dataset_ids)} datasets for server {server_id} and observatory {observatory}')
   else:
     log.info(f'Found {len(dataset_ids)} datasets for server {server_id}')
@@ -51,16 +55,16 @@ def relations(server_id, catalogs_all, observatory=None):
   _write(g, server_id, observatory=observatory)
 
 
-def _catalog(server_id, catalogs_all):
+def _catalog(server_id, all):
   import utilrsw
 
   log.info('Reading and preparing catalog.')
 
-  if server_id not in catalogs_all:
+  if server_id not in all:
     log.error(f"Server '{server_id}' not found in catalogs-all data")
     return None
 
-  catalog = catalogs_all[server_id]
+  catalog = all[server_id]
   if 'catalog' not in catalog:
     log.error(f"Catalog for server '{server_id}' does not contain 'catalog' key")
     return None
@@ -297,9 +301,11 @@ def _write(g, server_id, observatory=None):
 def run():
   args = hapimeta.cli()
   servers = args.servers
-  catalogs_all, _ = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
+  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
   if servers is None:
-    servers = list(catalogs_all.keys())
+    servers = list(all.keys())
+  if args.n_servers is not None and args.servers is None:
+    servers = servers[:args.n_servers]
 
   log.info(f'Generating relations for {servers}')
 
@@ -307,7 +313,7 @@ def run():
     if server not in ('INTERMAGNET', 'WDC'):
       log.info(f'No relations for server {server}.')
       continue
-    relations(server, catalogs_all, observatory="aae")
+    relations(server, all, observatory="aae", max_datasets=args.n_datasets)
     #relations(server)
 
 if __name__ == '__main__':

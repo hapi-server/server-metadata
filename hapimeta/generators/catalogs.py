@@ -205,11 +205,15 @@ def run():
   args = hapimeta.cli()
   servers_only = args.servers
   max_datasets = 1 if cfg['debug'] else cfg['max_datasets']
+  if args.n_datasets is not None:
+    max_datasets = args.n_datasets
   endpoints = {}
   log.info(40*'-')
   log.info('Reading abouts.')
   log.info(40*'-')
   abouts = read_abouts(cfg['servers_repo'], cfg['about_files'])
+  if servers_only is None and args.n_servers is not None:
+    servers_only = [about['id'] for about in abouts[:args.n_servers]]
 
   endpoints['about'] = utilrsw.array_to_dict(abouts, 'id')
 

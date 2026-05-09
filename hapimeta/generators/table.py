@@ -53,10 +53,10 @@ def normalize_datetime(time_str):
     return None
 
 
-def compute_rows(all_file, servers=None, omits=[]):
+def compute_rows(all, servers=None, omits=[], max_datasets=None):
 
   servers_keep = servers
-  servers = utilrsw.read(all_file)
+  servers = all
 
   rows = {
     'dataset': [],
@@ -73,6 +73,9 @@ def compute_rows(all_file, servers=None, omits=[]):
     if catalog is None:
       log.error(f'Could not find catalog for server: {server}. Skipping server.')
       continue
+
+    if max_datasets is not None:
+      catalog = catalog[:max_datasets]
 
     for dataset in catalog:
       dataset['server'] = server
@@ -134,10 +137,12 @@ def compute_rows(all_file, servers=None, omits=[]):
 def run():
   args = hapimeta.cli()
   servers = args.servers
-  _, file = hapimeta.catalogs_all(log, use_remote_catalog=args.use_remote_catalog)
+  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
+  if servers is None and args.n_servers is not None:
+    servers = list(all.keys())[:args.n_servers]
   omits = cfg['omits']
 
-  rows = compute_rows(file, omits=omits, servers=servers)
+  rows = compute_rows(all, omits=omits, servers=servers, max_datasets=args.n_datasets)
 
   config = cfg['dicts2table']
   tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)

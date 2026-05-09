@@ -16,7 +16,7 @@ log = hapimeta.logger('samples')
 
 savefig_fmts      = ['svg', 'png']
 out_dir           = os.path.join(hapimeta.DATA_DIR, 'availability')
-catalogs_all_file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
+all_file = os.path.join(hapimeta.DATA_DIR, 'catalogs-all.pkl')
 
 def cli():
   clkws = {
@@ -129,12 +129,12 @@ def process_server(catalog_all, server, datasets_only):
 
 servers_only, datasets_only = cli()
 
-catalogs_all = utilrsw.read(catalogs_all_file)
+all = utilrsw.read(all_file)
 
 if servers_only is not None:
   log.info(f"Generating sample plots for servers: {servers_only}")
 else:
-  log.info(f"Generating sample plots for all servers in {catalogs_all_file}")
+  log.info(f"Generating sample plots for all servers in {all_file}")
 
 if datasets_only is not None:
   log.info(f"Generating sample plots for datasets: {datasets_only}")
@@ -142,10 +142,10 @@ else:
   log.info("Generating sample plots for all datasets.")
 
 servers = []
-for server in catalogs_all.keys():
+for server in all.keys():
   if servers_only is not None and server not in servers_only:
     continue
   servers.append(server)
 
 for server in servers:
-  process_server(catalogs_all[server], server, datasets_only)
+  process_server(all[server], server, datasets_only)
