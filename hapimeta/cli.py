@@ -35,7 +35,7 @@ def cli():
   except Exception:
     pass
 
-  REMOTE_ALL = hapimeta.config('common')['REMOTE_ALL']
+  ALL_FILE_REMOTE = hapimeta.config('common')['ALL_FILE_REMOTE']
 
   epilog = [
     'Examples:',
@@ -78,7 +78,7 @@ def cli():
   parser.add_argument(
     '--use-remote-catalog',
     action='store_true',
-    help=f'Use {REMOTE_ALL} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl',
+    help=f'Use {ALL_FILE_REMOTE} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl',
   )
 
   args, _ = parser.parse_known_args()
