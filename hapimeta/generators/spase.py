@@ -55,7 +55,7 @@ def spase(server_id, server_meta, max_datasets=None):
     _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
     out_file = os.path.join(out_path, server_id, f"{dataset['id']}.json")
-    log.debug(f'Writing {out_file}')
+    log.info(f'Writing {out_file}')
     utilrsw.write(out_file, Spase)
 
   return Spase

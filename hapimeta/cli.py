@@ -25,6 +25,7 @@ def cli():
   import utilrsw
 
   available_commands = tuple(commands())
+  remote_catalog_commands = {'availabilities', 'relations', 'spase', 'table'}
 
   servers_help = 'Comma-separated list of server IDs'
   catalogs_file = os.path.join(hapimeta.DATA_DIR, 'catalogs.pkl')
@@ -78,7 +79,11 @@ def cli():
   parser.add_argument(
     '--use-remote-catalog',
     action='store_true',
-    help=f'Use {ALL_FILE_REMOTE} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl',
+    help=(
+      f'Use {ALL_FILE_REMOTE} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl '
+      f'for commands that read prebuilt catalog data: '
+      f"{', '.join(sorted(remote_catalog_commands))}"
+    ),
   )
 
   args, _ = parser.parse_known_args()
@@ -90,6 +95,11 @@ def cli():
     parser.error('--n-servers must be >= 0')
   if args.n_datasets is not None and args.n_datasets < 0:
     parser.error('--n-datasets must be >= 0')
+  if args.use_remote_catalog and args.command is not None and args.command not in remote_catalog_commands:
+    parser.error(
+      f"--use-remote-catalog is not used by '{args.command}'. "
+      f"Supported commands: {', '.join(sorted(remote_catalog_commands))}"
+    )
 
   if args.servers is None:
     args.servers = None

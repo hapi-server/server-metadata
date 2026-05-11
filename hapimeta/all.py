@@ -17,7 +17,7 @@ def all(log, use_remote_catalog=False):
       log.info(f"Remote file same as cached file. Using cached file: {file}")
     file_path = info['cache_file']
   else:
-    file_path = os.path.join(hapimeta.DATA_DIR, cfg_common['LOCAL_ALL'])
+    file_path = os.path.join(hapimeta.DATA_DIR, cfg_common['ALL_FILE'])
 
   log.info(f'Reading {file_path}')
   return utilrsw.read(file_path)
