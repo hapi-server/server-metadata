@@ -11,6 +11,7 @@ def main():
   else:
     command_names = [args.command]
 
+  breakpoint()
   for command_name in command_names:
     sys.argv = [sys.argv[0]]
     if args.servers is not None:

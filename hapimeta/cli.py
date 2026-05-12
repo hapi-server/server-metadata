@@ -10,7 +10,16 @@ def commands():
     if module_info.name == '__init__':
       continue
     command_names.append(module_info.name)
-  return sorted(command_names)
+
+  # About must be first, catalog second
+  if 'abouts' in command_names:
+    command_names.remove('abouts')
+    command_names.insert(0, 'abouts')
+  if 'catalogs' in command_names:
+    command_names.remove('catalogs')
+    command_names.insert(1, 'catalogs')
+
+  return command_names
 
 
 def cli():
