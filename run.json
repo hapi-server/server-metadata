@@ -24,7 +24,6 @@
     "servers_repo": "servers",
     "about_files": [
       "abouts.json",
-      "abouts-dev.json",
       "abouts-test.json"
     ]
   },
@@ -119,10 +118,23 @@
           "Format": ["CSV", "Binary", "JSON"],
           "Acknowledgement": "",
           "AccessURL": {
-            "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
+            "URL": "",
             "Style": "HAPI",
             "ProductKey": null,
             "Description": "Web Service to this data using the HAPI interface."
+          }
+        },
+        {
+          "RepositoryID": "spase://SMWG/Repository/?",
+          "Availability": "Online",
+          "AccessRights": "Open",
+          "Format": ["PNG", "x_SVG", "x_PDF"],
+          "Acknowledgement": "",
+          "AccessURL": {
+            "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
+            "Style": "HAPI",
+            "ProductKey": null,
+            "Description": "Alternative web service to this data. Contact: https://github.com/hapi-server/server-ui/issues"
           }
         },
         {
@@ -136,7 +148,7 @@
             "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}&return=script",
             "Style": "HAPI",
             "ProductKey": null,
-            "Description": "Web Service user interface that generates scripts in {languages} to access this dataset. See https://hapi-server.org/servers/api for the script generation API."
+            "Description": "Web Service user interface that generates scripts in {languages} to access this dataset. See https://hapi-server.org/servers/api for the script generation API. Contact: https://github.com/hapi-server/server-ui/issues"
           }
         }
       ],
