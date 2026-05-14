@@ -49,7 +49,7 @@ def spase(server_id, server_meta, max_datasets=None):
       log.info(f"  reread_info = True => overriding info from catalogs-all.pkl with that in {info_file}.")
 
     _add_NumericalData(Spase, dataset, cfg['config']['hapi2spase']['dataset'])
-    _add_ResourceHeader(Spase, dataset)
+    _add_ResourceHeader(Spase, dataset, about)
     _add_SpatialMapping(Spase, dataset)
     _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
     _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
@@ -82,7 +82,7 @@ def run():
 
 
 def _spase_stub():
-  config = cfg['config']
+  config = cfg['config']['Spase']
   SchemaURL = config.get('SchemaURL', None)
   Version = config.get('Version')
   Spase = {
@@ -147,7 +147,7 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
       Formats.append(cfg['config']['formatMap'][fmt])
     return Formats
 
-  def description(about):
+  def description(about, default_desc):
     def extra(type):
       desc = ''
       type_capitalized = type.capitalize()
@@ -163,58 +163,76 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
           desc = f'{type_capitalized}s: {notes}'
       return desc
 
-    desc = ''
-    description = utilrsw.get_path(about, 'description')
+    desc = utilrsw.get_path(about, 'description')
+    if desc is None:
+      desc = default_desc
+
     contact = utilrsw.get_path(about, 'contact')
     contactID = utilrsw.get_path(about, 'contactID')
 
-    if description is None and contact is None and contactID is None:
-      return None
-    if description is not None:
-      desc += description
-
+    desc = desc.rstrip('.')
     if contact and contactID:
       if contact == contactID:
-        desc = f'{desc} (Contact: {contact})'
+        desc = f'{desc}. Contact: {contact}.'
       else:
-        desc = f'{desc} (Contact: {contact} <{contactID}>)'
+        desc = f'{desc}. Contact: {contact} <{contactID}>.'
     if not contact and contactID:
-      desc = f'{desc} (Contact: <{contactID}>)'
+      desc = f'{desc}. Contact: <{contactID}>.'
     if contact and not contactID:
-      desc = f'{desc} (Contact: {contact})'
+      desc = f'{desc}. Contact: {contact}.'
 
-    serverCitation = utilrsw.get_path(about, 'serverCitation')
-    if serverCitation is not None:
-      desc = f'{desc}. Server Citation: {serverCitation} (see dataset description for citing the dataset)'
+    desc = desc.rstrip('.')
 
     note = extra('note')
     if note:
+      desc = desc.rstrip('.')
       desc = f'{desc}. {note}'
 
     warning = extra('warning')
     if warning:
+      desc = desc.rstrip('.')
       desc = f'{desc}. {warning}'
 
-    return desc + '.'
+    return desc.rstrip('.') + '.'
 
   data_formats = formats(capabilities)
 
-  languages, language_formats = script_info()
 
   template = copy.deepcopy(template)
-  for i in range(len(template)):
-    url = template[i]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
-    template[i]['AccessURL']['URL'] = url
-    template[i]['AccessURL']['ProductKey'] = dataset['id']
 
-  desc = description(about)
+  serverCitation = utilrsw.get_path(about, 'serverCitation')
+  DOI = utilrsw.get_path(Spase, ['NumericalData.ResourceHeader.DOI'], None)
+  if DOI is None:
+    see = 'See ResourceHeader/Description for information on citing the dataset'
+  else:
+    see = f'See ResourceHeader/DOI: {DOI} for information on citing the dataset'
+  if serverCitation is not None:
+    serverCitation = f'Server Citation: {serverCitation} ({see}).'
+  else:
+    serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
+
+  for i in range(len(template)):
+    template[i]['AccessURL']['ProductKey'] = dataset['id']
+    template[i]['Acknowledgement'] = serverCitation
+
+  desc = description(about, template[0]['AccessURL']['Description'])
   if desc is not None:
     template[0]['AccessURL']['Description'] = desc
-  template[0]['AccessURL']['Format'] = data_formats
+  url = template[0]['AccessURL']['URL'] = dataset['server_url']
+  template[0]['AccessURL']['URL'] = url
+  template[0]['Format'] = data_formats
 
-  desc = template[1]['AccessURL']['Description'].format(languages=languages)
-  template[1]['AccessURL']['Description'] = desc
-  template[1]['AccessURL']['Format'] = language_formats
+  url = template[1]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
+  template[1]['AccessURL']['URL'] = url
+  template[1]['Format'] = data_formats + template[1]['Format']
+
+  languages, language_formats = script_info()
+
+  desc = template[2]['AccessURL']['Description'].format(languages=languages)
+  template[2]['AccessURL']['Description'] = desc
+  url = template[2]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
+  template[2]['AccessURL']['URL'] = url
+  template[2]['Format'] = language_formats
 
   Spase['NumericalData']['AccessInformation'] = template
 
@@ -249,7 +267,7 @@ def _add_SpatialMapping(Spase, dataset):
         Spase['NumericalData']['SpatialMapping']['centerElevation'] = point[2]
 
 
-def _add_ResourceHeader(Spase, dataset):
+def _add_ResourceHeader(Spase, dataset, about):
   import datetime
 
   def extract_doi(doi_string):
@@ -325,22 +343,44 @@ def _add_ResourceHeader(Spase, dataset):
   now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
   Spase['NumericalData']['ResourceHeader']['ReleaseDate'] = now
 
+  PersonID = about.get('x_SPASE_PersonID', 'UNKNOWN')
+  Contacts = [{'PersonID': PersonID, 'Role': 'HostContact'}]
+
+  # Need to add from dataset/info/contact
+  Contacts.append({'PersonID': 'UNKNOWN', 'Role': 'GeneralContact'})
+
+  Spase['NumericalData']['ResourceHeader']['Contact'] = Contacts
+
+  extra = ""
   for field in ['datasetCitation', 'resourceID', 'citation']:
     value = utilrsw.get_path(dataset, f'info.{field}')
     if value is not None:
       DOI = extract_doi(value)
       if DOI is not None:
         Spase['NumericalData']['ResourceHeader']['DOI'] = DOI
-      else:
-        desc = Spase['NumericalData']['ResourceHeader'].get('Description', '')
-        desc = desc.rstrip('.')
-        extra = f'HAPI resourceID: {value}.'
-        Spase['NumericalData']['ResourceHeader']['Description'] = f'{desc}. {extra}'
+
+      extra += f'HAPI {field}: {value}. '
+
+  extra = extra.strip()
 
   desc = Spase['NumericalData']['ResourceHeader'].get('Description', '')
   desc = desc.rstrip('.')
-  desc = f'{desc}. The ReleaseDate is the date that this SPASE record was generated by an automated process. Changes are not tracked so the ReleaseDate may change when no changes have occured.'
+  if desc != '':
+    if extra != '':
+      desc = f'{desc}. {extra}'
+    else:
+      desc = f'{desc}.'
+  else:
+    desc = extra
 
+  coda = 'The ReleaseDate is the date that this SPASE record was generated by an automated process. Changes are not tracked so the ReleaseDate may change when no changes have occured.'
+  if desc != '':
+    desc = desc.rstrip('.')
+    desc = f'{desc}. {coda}'
+  else:
+    desc = coda
+
+  Spase['NumericalData']['ResourceHeader']['Description'] = desc
 
 if __name__ == '__main__':
   run()
