@@ -24,7 +24,6 @@
     "servers_repo": "servers",
     "about_files": [
       "abouts.json",
-      "abouts-dev.json",
       "abouts-test.json"
     ]
   },
