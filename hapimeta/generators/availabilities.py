@@ -43,8 +43,6 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
   plt.rcParams['svg.fonttype'] = 'none'
   plt.rcParams['font.family'] = ['Times New Roman', 'DejaVu Sans']
 
-  import datetick
-
   special_chars = {
     'ts': '\u2002',
     'rarrow': '\u2192 ',
@@ -61,6 +59,8 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
   def config(ax, starts_min, stops_max, title=None, left_margin=None, right_margin=None):
 
+    import datetick
+
     if title is not None:
       ax.text(0.5, 1.0, title, transform=ax.transAxes, va='top', ha='center', fontsize=10, backgroundcolor='white')
     ax.set_xlim([starts_min, stops_max])
@@ -70,7 +70,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
     ax.grid(axis='x', which='minor', alpha=0.5, linestyle=':')
     ax.grid(axis='x', which='major', color='k', alpha=0.5)
     ax.set_yticks(ticks=[])
-    datetick.datetick('x')
+    datetick.datetick('x', axes=ax)
     if left_margin is not None and right_margin is not None:
       plt.subplots_adjust(left=left_margin, right=right_margin)
     plt.subplots_adjust(top=1.0, bottom=0.03)

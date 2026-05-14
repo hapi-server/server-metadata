@@ -55,7 +55,7 @@ def main():
 
   with log_file.open('a') as log_handle, error_file.open('a') as error_handle:
     process = subprocess.Popen(
-      [sys.executable, 'run.py'],
+      [sys.executable, 'run.py', '--email-on-exception'],
       cwd=repo_dir,
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,

@@ -94,6 +94,12 @@ def cli():
       f"{', '.join(sorted(remote_catalog_commands))}"
     ),
   )
+  parser.add_argument(
+    '--email-on-exception',
+    dest='email_on_exception',
+    action='store_true',
+    help='Send an email when run.py catches an uncaught generator exception.',
+  )
 
   args, _ = parser.parse_known_args()
 

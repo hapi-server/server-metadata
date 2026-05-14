@@ -41,10 +41,11 @@ def main():
     except Exception as e:
       body = f"Error running {module_name}: {e}"
       print(body)
-      try:
-        _email('rweigel@gmu.edu', "Uncaught hapimeta/run.py exception", body)
-      except Exception as e2:
-        print(f"Error sending email: {e2}")
+      if args.email_on_exception:
+        try:
+          _email('rweigel@gmu.edu', "Uncaught hapimeta/run.py exception", body)
+        except Exception as e2:
+          print(f"Error sending email: {e2}")
       continue
     hapimeta.error.combine()
 
