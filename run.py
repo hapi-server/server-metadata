@@ -4,6 +4,19 @@ import importlib
 import hapimeta
 
 
+def _email(to, subject, body):
+  import smtplib
+  from email.mime.text import MIMEText
+
+  msg = MIMEText(body)
+  msg['Subject'] = subject
+  msg['From'] = to
+  msg['To'] = to
+
+  with smtplib.SMTP('localhost') as server:
+    server.send_message(msg, from_addr=to, to_addrs=[to])
+
+
 def main():
   args = hapimeta.cli()
   if args.command is None:
@@ -21,9 +34,18 @@ def main():
       sys.argv.extend(['--n-datasets', str(args.n_datasets)])
     if args.use_remote_catalog:
       sys.argv.append('--use-remote-catalog')
-    module_name = f'hapimeta.generators.{command_name}'
-    module = importlib.import_module(module_name)
-    module.run()
+    try:
+      module_name = f'hapimeta.generators.{command_name}'
+      module = importlib.import_module(module_name)
+      module.run()
+    except Exception as e:
+      body = f"Error running {module_name}: {e}"
+      print(body)
+      try:
+        _email('rweigel@gmu.edu', "Uncaught hapimeta/run.py exception", body)
+      except Exception as e2:
+        print(f"Error sending email: {e2}")
+      continue
     hapimeta.error.combine()
 
 
