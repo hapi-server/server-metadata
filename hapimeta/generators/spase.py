@@ -6,6 +6,17 @@ import hapimeta
 cfg = hapimeta.config('spase')
 log = hapimeta.logger('spase')
 
+def run():
+
+  log.info('Generating SPASE')
+  args = hapimeta.cli()
+  all = hapimeta.all(log)
+
+  for server_id in all.keys():
+    log.info(f'{server_id}')
+    spase(server_id, all[server_id], max_datasets=args.n_datasets)
+
+
 def spase(server_id, server_meta, max_datasets=None):
 
   Spase = _spase_stub()
@@ -61,17 +72,6 @@ def spase(server_id, server_meta, max_datasets=None):
   return Spase
 
 
-def run():
-
-  log.info('Generating SPASE')
-  args = hapimeta.cli()
-  all = hapimeta.all(log)
-
-  for server_id in all.keys():
-    log.info(f'{server_id}')
-    spase(server_id, all[server_id], max_datasets=args.n_datasets)
-
-
 def _spase_stub():
   config = cfg['config']['Spase']
   SchemaURL = config.get('SchemaURL', None)
@@ -90,8 +90,9 @@ def _spase_stub():
 
 
 def _add_NumericalData(Spase, dataset, map):
-  NumericalData = utilrsw.map_dict(dataset, map)
-  Spase['NumericalData'] = NumericalData
+  Spase['NumericalData'] = utilrsw.map_dict(dataset, map)
+  # Valid in 2.7.2 only?
+  Spase['NumericalData']['MeasurementType'] = "NotProvided"
 
 
 def _add_Parameter(Spase, dataset, map):
@@ -189,7 +190,7 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   data_formats = formats(capabilities)
 
 
-  template = copy.deepcopy(template)
+  AccessInformation = copy.deepcopy(template)
 
   serverCitation = utilrsw.get_path(about, 'serverCitation')
   DOI = utilrsw.get_path(Spase, ['NumericalData.ResourceHeader.DOI'], None)
@@ -198,34 +199,48 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   else:
     see = f'See ResourceHeader/DOI: {DOI} for information on citing the dataset'
   if serverCitation is not None:
-    serverCitation = f'Server Citation: {serverCitation} ({see}).'
+    serverCitation = f'Repository Citation: {serverCitation} ({see}).'
   else:
     serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
 
-  for i in range(len(template)):
-    template[i]['AccessURL']['ProductKey'] = dataset['id']
-    template[i]['Acknowledgement'] = serverCitation
+  for i in range(len(AccessInformation)):
+    AccessInformation[i]['AccessURL']['ProductKey'] = dataset['id']
+    AccessInformation[i]['Acknowledgement'] = serverCitation
 
-  desc = description(about, template[0]['AccessURL']['Description'])
+  desc = description(about, AccessInformation[0]['AccessURL']['Description'])
   if desc is not None:
-    template[0]['AccessURL']['Description'] = desc
-  url = template[0]['AccessURL']['URL'] = dataset['server_url']
-  template[0]['AccessURL']['URL'] = url
-  template[0]['Format'] = data_formats
+    AccessInformation[0]['AccessURL']['Description'] = desc
+  url = AccessInformation[0]['AccessURL']['URL'] = dataset['server_url']
+  AccessInformation[0]['AccessURL']['URL'] = url
+  AccessInformation[0]['Format'] = data_formats
 
-  url = template[1]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
-  template[1]['AccessURL']['URL'] = url
-  template[1]['Format'] = data_formats + template[1]['Format']
+  url = AccessInformation[1]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
+  AccessInformation[1]['AccessURL']['URL'] = url
+  AccessInformation[1]['Format'] = data_formats + AccessInformation[1]['Format']
 
   languages, language_formats = script_info()
 
-  desc = template[2]['AccessURL']['Description'].format(languages=languages)
-  template[2]['AccessURL']['Description'] = desc
-  url = template[2]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
-  template[2]['AccessURL']['URL'] = url
-  template[2]['Format'] = language_formats
+  desc = AccessInformation[2]['AccessURL']['Description'].format(languages=languages)
+  AccessInformation[2]['AccessURL']['Description'] = desc
+  url = AccessInformation[2]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
+  AccessInformation[2]['AccessURL']['URL'] = url
+  AccessInformation[2]['Format'] = language_formats
 
-  Spase['NumericalData']['AccessInformation'] = template
+  licenseURL = utilrsw.get_path(dataset, 'info.licenseURL')
+  if licenseURL is not None:
+    if isinstance(licenseURL, str):
+      licenseURL = [licenseURL]
+    for i in range(len(AccessInformation)):
+      AccessInformation[i]['RightsList'] = []
+      for url in licenseURL:
+        # TODO?: If spdx.org, could derive other fields such as RightsIdentifierScheme
+        Rights = {'Rights': { 'RightsURI': url}}
+        AccessInformation[i]['RightsList'].append(Rights)
+
+      key_order = ['RepositoryID', 'Acknowledgement', 'Availability', 'AccessURL', 'AccessRights', 'RightsList', 'Format']
+      AccessInformation[i] = utilrsw.reorder_dict(AccessInformation[i], key_order)
+
+  Spase['NumericalData']['AccessInformation'] = AccessInformation
 
 
 def _add_SpatialMapping(Spase, dataset):
