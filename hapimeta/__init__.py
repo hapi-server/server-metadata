@@ -11,11 +11,11 @@ from hapimeta.config import config
 
 DATA_DIR = config('common')['DATA_DIR']
 
-all    = importlib.import_module('hapimeta.all').all
-cli    = importlib.import_module('hapimeta.cli').cli
-error  = importlib.import_module('hapimeta.error')
-get    = importlib.import_module('hapimeta.get').get
-logger = importlib.import_module('hapimeta.logger').logger
+all     = importlib.import_module('hapimeta.all').all
+cli     = importlib.import_module('hapimeta.cli').cli
+error   = importlib.import_module('hapimeta.error')
+get     = importlib.import_module('hapimeta.get').get
+logger  = importlib.import_module('hapimeta.logger').logger
 
 __all__ = [
   '__version__',
@@ -25,5 +25,5 @@ __all__ = [
   'get',
   'logger',
   'cli',
-  'error',
+  'error'
 ]

@@ -402,29 +402,13 @@ def process_server(server, catalog_all, max_datasets=None):
 
 
 def run():
+
+  log.info('Generating availability plots')
   args = hapimeta.cli()
-  servers_only = args.servers
-  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
-  if servers_only:
-    log.info(f'Generating availability for {servers_only}')
-  else:
-    log.info('Generating availability for all servers')
-
-  servers = []
-  for server in all.keys():
-    if servers_only is not None and server not in servers_only:
-      continue
-    servers.append(server)
-
-  if servers_only is None and args.n_servers is not None:
-    servers = servers[:args.n_servers]
-
-  if len(servers) == 0:
-    log.error(f'No servers to process. Possible servers: {all.keys()}')
-    exit(1)
+  all = hapimeta.all(log)
 
   dfs = []
-  for server in servers:
+  for server in all.keys():
     df = process_server(server, all[server], max_datasets=args.n_datasets)
     hapimeta.error.write(server, 'availabilities', log)
     dfs.append(df)

@@ -63,21 +63,12 @@ def spase(server_id, server_meta, max_datasets=None):
 
 def run():
 
+  log.info('Generating SPASE')
   args = hapimeta.cli()
-  servers_only = args.servers
+  all = hapimeta.all(log)
 
-  log.info(f'Generating SPASE for {servers_only}')
-  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
-
-  servers = list(all.keys())
-  if servers_only is not None:
-    servers = [server_id for server_id in servers if server_id in servers_only]
-  elif args.n_servers is not None:
-    servers = servers[:args.n_servers]
-
-  for server_id in servers:
+  for server_id in all.keys():
     log.info(f'{server_id}')
-
     spase(server_id, all[server_id], max_datasets=args.n_datasets)
 
 

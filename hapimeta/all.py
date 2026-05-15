@@ -1,14 +1,15 @@
-def all(log, use_remote_catalog=False):
+def all(log):
   import os
   import utilrsw
   import hapimeta
 
+  args = hapimeta.cli()
   cfg_common = hapimeta.config('common')
 
-  if use_remote_catalog:
+  if args.use_remote_catalog:
     url = cfg_common['ALL_FILE_REMOTE']
     file = os.path.join(hapimeta.DATA_DIR, 'tmp', cfg_common['ALL_FILE'])
-    log.info(f"Maybe downloading {url} to {file}")
+    log.info(f"Downloading {url} to {file}")
     info = utilrsw.net.get_conditional(url, file=file, stream=True, progress=True)
     if info is None:
       log.error(f"Failed to get {url}")
@@ -20,4 +21,18 @@ def all(log, use_remote_catalog=False):
     file_path = os.path.join(hapimeta.DATA_DIR, cfg_common['ALL_FILE'])
 
   log.info(f'Reading {file_path}')
-  return utilrsw.read(file_path)
+  all = utilrsw.read(file_path)
+
+
+  subset = False
+  if args.servers is not None:
+    subset = True
+    all = {server_id: server_meta for server_id, server_meta in all.items() if server_id in args.servers}
+  if args.n_servers is not None:
+    subset = True
+    all = dict(list(all.items())[:args.n_servers])
+
+  server_names = f'all {len(all)} servers' if not subset else f'servers {args.servers}'
+  log.info(f'Using {server_names} for generating content')
+
+  return all

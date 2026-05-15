@@ -39,7 +39,10 @@ def main():
       module = importlib.import_module(module_name)
       module.run()
     except Exception as e:
-      body = f"Error running {module_name}: {e}"
+      # Include full stack trace with line numbers in the error message
+      import traceback
+      stack_trace = traceback.format_exc()
+      body = f"Error running {module_name}: \n{stack_trace}"
       print(body)
       if args.email_on_exception:
         try:

@@ -53,23 +53,18 @@ def normalize_datetime(time_str):
     return None
 
 
-def compute_rows(all, servers=None, omits=[], max_datasets=None):
-
-  servers_keep = servers
-  servers = all
+def compute_rows(all, omits=[], max_datasets=None):
 
   rows = {
     'dataset': [],
     'parameter': []
   }
 
-  for server in servers:
-    if servers_keep is not None and server not in servers_keep:
-      continue
+  for server in all:
 
     log.info(f'Generating table for {server}')
 
-    catalog = utilrsw.get_path(servers[server], 'catalog/catalog', sep='/')
+    catalog = utilrsw.get_path(all[server], 'catalog/catalog', sep='/')
     if catalog is None:
       log.error(f'Could not find catalog for server: {server}. Skipping server.')
       continue
@@ -135,14 +130,11 @@ def compute_rows(all, servers=None, omits=[], max_datasets=None):
 
 
 def run():
+  log.info('Generating table')
   args = hapimeta.cli()
-  servers = args.servers
-  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
-  if servers is None and args.n_servers is not None:
-    servers = list(all.keys())[:args.n_servers]
-  omits = cfg['omits']
+  all = hapimeta.all(log)
 
-  rows = compute_rows(all, omits=omits, servers=servers, max_datasets=args.n_datasets)
+  rows = compute_rows(all, omits=cfg['omits'], max_datasets=args.n_datasets)
 
   config = cfg['dicts2table']
   tableui.dicts2table(rows['dataset'], config['dataset'], logger=log)

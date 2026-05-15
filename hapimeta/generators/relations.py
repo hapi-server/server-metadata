@@ -69,22 +69,23 @@ def _catalog(server_id, all):
     log.error(f"Catalog for server '{server_id}' does not contain 'catalog' key")
     return None
 
-  catalog = utilrsw.array_to_dict(catalog['catalog'], 'id')
+  datasets = utilrsw.get_path(catalog, 'catalog/catalog', sep='/')
+  datasets = utilrsw.array_to_dict(datasets, 'id')
 
-  for dataset_id in list(catalog.keys()):
-    dataset = catalog[dataset_id]
+  for dataset_id in list(datasets.keys()):
+    dataset = datasets[dataset_id]
     if 'info' not in dataset:
       log.error(f"Dataset {dataset_id} is missing 'info'")
-      del catalog[dataset_id]
+      del datasets[dataset_id]
       continue
     if 'parameters' not in dataset['info']:
       log.error(f"Dataset {dataset_id} is missing 'parameters'")
-      del catalog[dataset_id]
+      del datasets[dataset_id]
       continue
     parameters = dataset['info']['parameters']
     dataset['parameters'] = utilrsw.array_to_dict(parameters, 'name')
 
-  return catalog
+  return datasets
 
 
 def _observatories(dataset_ids, server_id):
@@ -299,22 +300,17 @@ def _write(g, server_id, observatory=None):
 
 
 def run():
+
+  log.info('Generating relations')
   args = hapimeta.cli()
-  servers = args.servers
-  all = hapimeta.all(log, use_remote_catalog=args.use_remote_catalog)
-  if servers is None:
-    servers = list(all.keys())
-  if args.n_servers is not None and args.servers is None:
-    servers = servers[:args.n_servers]
+  all = hapimeta.all(log)
 
-  log.info(f'Generating relations for {servers}')
-
-  for server in servers:
+  for server in all.keys():
     if server not in ('INTERMAGNET', 'WDC'):
       log.info(f'No relations for server {server}.')
       continue
     relations(server, all, observatory="aae", max_datasets=args.n_datasets)
-    #relations(server)
+    relations(server, all, max_datasets=args.n_datasets)
 
 if __name__ == '__main__':
   run()
