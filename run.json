@@ -168,7 +168,7 @@
           "info/warning": "Caveats"
         },
         "parameter": {
-          "name": "ParameterKey",
+          "name": ["Name", "ParameterKey"],
           "description": "Description",
           "units": "Units"
         }

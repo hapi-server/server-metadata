@@ -102,6 +102,11 @@ def _add_Parameter(Spase, dataset, map):
     for parameter in parameters:
       Parameter = utilrsw.map_dict(parameter, map)
       Parameters.append(Parameter)
+      if 'units' in parameter and parameter['units'].lower() == 'UTC':
+        Parameter['Support'] = {'SupportQuantity': 'Temporal'}
+      else:
+        Parameter['Mixed'] = {'MixedQuantity': 'Other'}
+
     Spase['NumericalData']['Parameter'] = Parameters
 
 
@@ -387,6 +392,7 @@ def _add_ResourceHeader(Spase, dataset, about):
     desc = coda
 
   Spase['NumericalData']['ResourceHeader']['Description'] = desc
+
 
 if __name__ == '__main__':
   run()
