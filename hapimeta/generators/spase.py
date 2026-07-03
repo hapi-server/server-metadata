@@ -15,12 +15,13 @@ def run():
   # Read in full metadata from catalogs-all.pkl
   all = hapimeta.all(log)
 
+  schema = _read_schema()
   for server_id in all.keys():
     log.info(f'{server_id}')
-    spase(server_id, all[server_id], max_datasets=args.n_datasets)
+    spase(server_id, all[server_id], schema, max_datasets=args.n_datasets)
 
 
-def spase(server_id, server_meta, max_datasets=None):
+def spase(server_id, server_meta, schema, max_datasets=None):
 
   Spase = _spase_stub()
 
@@ -81,37 +82,46 @@ def spase(server_id, server_meta, max_datasets=None):
 
     _write(Spase, server_id, dataset['id'], out_path)
 
-    _validate(Spase, server_id, dataset['id'], out_path)
+    _validate(Spase, schema, server_id, dataset['id'], out_path)
 
   return Spase
 
 
 def _write(Spase, server_id, dataset_id, out_path):
-    json_file = os.path.join(out_path, server_id, f"{dataset_id}.json")
-    log.info(f'      Writing {json_file}')
-    utilrsw.write(json_file, Spase)
+  json_file = os.path.join(out_path, server_id, f"{dataset_id}.json")
+  log.info(f'      Writing {json_file}')
+  utilrsw.write(json_file, Spase)
 
-    import xmltodict
-    # Convert json to xml
-    xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
-    attr_keys = ('xmlns', 'xmlns:xsi', 'xsi:schemaLocation')
-    xml_root = {(f'@{k}' if k in attr_keys else k): v for k, v in Spase.items()}
-    xml_content = xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
-    log.info(f'      Writing {xml_file}')
-    utilrsw.write(xml_file, xml_content)
+  import xmltodict
+  # Convert json to xml
+  xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
+  attr_keys = ('xmlns', 'xmlns:xsi', 'xsi:schemaLocation')
+  xml_root = {(f'@{k}' if k in attr_keys else k): v for k, v in Spase.items()}
+  xml_content = xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
+  log.info(f'      Writing {xml_file}')
+  utilrsw.write(xml_file, xml_content)
 
-def _validate(Spase, server_id, dataset_id, out_path):
+
+def _read_schema():
+  config = cfg['config']['Spase']
+  schema_url = _schema_xsd_url(config['SchemaURL'], config['Version'])
+  file = os.path.join(hapimeta.DATA_DIR, 'tmp', schema_url.split('/')[-1])
+  if not os.path.exists(file):
+    log.info(f"Downloading {schema_url} to {file}")
+  else:
+    log.info(f"Reading {file}")
+  response = utilrsw.net.get_conditional(schema_url, file=file, stream=False, progress=False)
+  return response['data']
+
+
+def _validate(Spase, schema, server_id, dataset_id, out_path):
   from lxml import etree
-  import requests
 
   schema_url = _schema_xsd_url(Spase['xmlns'], Spase['Version'])
   xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
-  try:
-    log.info(f'      Getting {schema_url}')
-    response = requests.get(schema_url, timeout=10)
-    response.raise_for_status()
-    schema = etree.XMLSchema(etree.fromstring(response.content))
 
+  try:
+    schema = etree.XMLSchema(etree.fromstring(schema))
     log.info(f'      Validating {xml_file} against {schema_url.split("/")[-1]}')
     with open(xml_file, 'rb') as f:
       doc = etree.fromstring(f.read())
@@ -122,6 +132,7 @@ def _validate(Spase, server_id, dataset_id, out_path):
       log.info('        Valid')
   except Exception as e:
     log.warning(f'       Uncaught exception: {e}')
+
 
 def _schema_xsd_url(schema_url, version):
   return f'{schema_url}/spase-{version}.xsd'

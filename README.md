@@ -16,7 +16,7 @@ See `etc/crontab.py` for commands that are executed nightly.
 
 For testing changes to the table configuration using the nightly generated metadata, use
 
-```
+```bash
 rsync -avz weigel@rweigel.dynu.net:git/hapi/server-metadata/data .
 pip install -e .
 
@@ -28,6 +28,16 @@ python ../table-ui/serve.py --config table/tableui.json --port 8052
 
 To regenerate table metadata, use
 
-```
+```bash
 python run.py table [server]
+```
+
+# Installation
+
+```bash
+conda create -y -n hapimeta-python-3.11.9 python=3.11.9 && conda activate hapimeta-python-3.11.9
+git clone https://github.com/hapi-server/server-metadata && cd server-metadata
+pip install -e .
+python run.py spase --servers TestData2.0 --use-remote-catalog
+python run.py spase --servers TestData2.0,TestData2.1,TestData3.0,TestData3.1,TestData3.2,TestData3.3 --use-remote-catalog
 ```
