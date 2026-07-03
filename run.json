@@ -128,7 +128,7 @@
           "RepositoryID": "spase://SMWG/Repository/?",
           "Availability": "Online",
           "AccessRights": "Open",
-          "Format": ["PNG", "x_SVG", "x_PDF"],
+          "Format": ["PNG", "SVG", "PDF"],
           "Acknowledgement": "",
           "AccessURL": {
             "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
@@ -162,9 +162,9 @@
           "id": "ProviderResourceName",
           "title": "ResourceHeader/ResourceName",
           "info/description": "ResourceHeader/Description",
-          "info/cadence": "TemporalDescription/Cadence",
           "info/startDate": "TemporalDescription/TimeSpan/StartDate",
           "info/stopDate": "TemporalDescription/TimeSpan/StopDate",
+          "info/cadence": "TemporalDescription/Cadence",
           "info/warning": "Caveats"
         },
         "parameter": {

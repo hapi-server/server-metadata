@@ -50,14 +50,24 @@ def cli():
   epilog = [
     'Examples:',
     '  python run.py',
+    '',
     '  python run.py abouts',
-    '  python run.py abouts --servers server1,server2',
-    'python run.py --servers server1,server2'
+    '  python run.py abouts --servers CDAWeb',
+    '  python run.py abouts --servers TestData2.0,TestData3.0',
+    '  python run.py abouts --servers TestData2.0,TestData3.0 --n-datasets 1',
+    '',
+    '  python run.py spase',
+    '  python run.py spase --servers TestData2.0,TestData3.0',
+    '  python run.py spase --servers TestData2.0,TestData3.0 --n-datasets 1'
   ]
   command_list = ', '.join(available_commands)
 
+  description = ('Process metadata for all servers or a comma-separated subset. '
+                 'If no command is given, all commands are run in the order: '
+                 f'{command_list}.')
   parser = argparse.ArgumentParser(
-    description='Process metadata for all servers or a comma-separated subset.',
+    usage='%(prog)s [command] [options]',
+    description=description,
     epilog='\n'.join(epilog),
     formatter_class=argparse.RawDescriptionHelpFormatter,
   )
@@ -90,8 +100,8 @@ def cli():
     action='store_true',
     help=(
       f'Use {ALL_FILE_REMOTE} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl '
-      f'for commands that read prebuilt catalog data: '
-      f"{', '.join(sorted(remote_catalog_commands))}"
+      f'for commands that read prebuilt catalog data ('
+      f"{', '.join(sorted(remote_catalog_commands))})"
     ),
   )
   parser.add_argument(

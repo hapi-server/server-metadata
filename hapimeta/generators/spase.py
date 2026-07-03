@@ -1,4 +1,5 @@
 import os
+
 import utilrsw
 
 import hapimeta
@@ -10,6 +11,8 @@ def run():
 
   log.info('Generating SPASE')
   args = hapimeta.cli()
+
+  # Read in full metadata from catalogs-all.pkl
   all = hapimeta.all(log)
 
   for server_id in all.keys():
@@ -26,24 +29,31 @@ def spase(server_id, server_meta, max_datasets=None):
     log.error(f"No catalog found for server '{server_id}' in catalogs-all.pkl. Skipping server.")
     return
 
+  s = '' if len(catalog) == 1 else 's'
+  log.info(f'  Found {len(catalog)} dataset{s}')
+
   if max_datasets is not None:
     catalog = catalog[:max_datasets]
+    s = '' if len(catalog) == 1 else 's'
+    log.info(f'  Processing only {len(catalog)} dataset{s} due to --n-datasets {max_datasets}')
 
-  log.info(f'  {len(catalog)} datasets')
 
+  log.info(f'  Extracting about information for server {server_id} from catalogs-all.pkl')
   about = server_meta.get('about', None)
+  log.info(f'  Extracting capabilities information for server {server_id} from catalogs-all.pkl')
   capabilities = server_meta.get('capabilities', None)
 
   out_path = os.path.join(hapimeta.DATA_DIR, 'spase')
 
   Spase = _spase_stub()
 
+  log.info('  Processing datasets.')
   for idx, dataset in enumerate(catalog):
     dataset['server'] = server_id
     dataset['server_url'] = about['x_url']
     dataset['dataset'] = dataset['id']
 
-    log.info(f"  {idx+1}. {dataset['id']}")
+    log.info(f"    {idx+1}. {dataset['id']}")
 
     if cfg['reread_info']:
       info_dir = os.path.join(hapimeta.DATA_DIR, cfg['info_path'], server_id)
@@ -65,11 +75,56 @@ def spase(server_id, server_meta, max_datasets=None):
     _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
     _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
-    out_file = os.path.join(out_path, server_id, f"{dataset['id']}.json")
-    log.info(f'Writing {out_file}')
-    utilrsw.write(out_file, Spase)
+    key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
+                 'MeasurementType', 'TemporalDescription', 'Caveats', 'SpatialMapping', 'Parameter']
+    Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
+
+    _write(Spase, server_id, dataset['id'], out_path)
+
+    _validate(Spase, server_id, dataset['id'], out_path)
 
   return Spase
+
+
+def _write(Spase, server_id, dataset_id, out_path):
+    json_file = os.path.join(out_path, server_id, f"{dataset_id}.json")
+    log.info(f'      Writing {json_file}')
+    utilrsw.write(json_file, Spase)
+
+    import xmltodict
+    # Convert json to xml
+    xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
+    attr_keys = ('xmlns', 'xmlns:xsi', 'xsi:schemaLocation')
+    xml_root = {(f'@{k}' if k in attr_keys else k): v for k, v in Spase.items()}
+    xml_content = xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
+    log.info(f'      Writing {xml_file}')
+    utilrsw.write(xml_file, xml_content)
+
+def _validate(Spase, server_id, dataset_id, out_path):
+  from lxml import etree
+  import requests
+
+  schema_url = _schema_xsd_url(Spase['xmlns'], Spase['Version'])
+  xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
+  try:
+    log.info(f'      Getting {schema_url}')
+    response = requests.get(schema_url, timeout=10)
+    response.raise_for_status()
+    schema = etree.XMLSchema(etree.fromstring(response.content))
+
+    log.info(f'      Validating {xml_file} against {schema_url.split("/")[-1]}')
+    with open(xml_file, 'rb') as f:
+      doc = etree.fromstring(f.read())
+    if not schema.validate(doc):
+      for error in schema.error_log:
+        log.error(f'        {error}')
+    else:
+      log.info('        Valid')
+  except Exception as e:
+    log.warning(f'       Uncaught exception: {e}')
+
+def _schema_xsd_url(schema_url, version):
+  return f'{schema_url}/spase-{version}.xsd'
 
 
 def _spase_stub():
@@ -79,7 +134,7 @@ def _spase_stub():
   Spase = {
     'xmlns': SchemaURL,
     'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-    'xsi:schemaLocation': f'{SchemaURL} {SchemaURL}/spase-{Version}.xsd',
+    'xsi:schemaLocation': f'{SchemaURL} {_schema_xsd_url(SchemaURL, Version)}',
     'Version': Version,
     'NumericalData': {
       'AccessInformation': [],
@@ -89,10 +144,36 @@ def _spase_stub():
   return Spase
 
 
+def _normalize_datetime(value):
+  """Ensure a date/datetime string has a time component for SPASE schema compliance.
+
+  E.g. '2016-12-31Z' -> '2016-12-31T00:00:00Z'
+       '2016-12-31'  -> '2016-12-31T00:00:00Z'
+  """
+  if not isinstance(value, str) or 'T' in value:
+    return value
+  # Strip trailing Z, append time, re-add Z
+  bare = value.rstrip('Z')
+  return bare + 'T00:00:00Z'
+
+
 def _add_NumericalData(Spase, dataset, map):
-  Spase['NumericalData'] = utilrsw.map_dict(dataset, map)
+  resource_id = utilrsw.get_path(dataset, 'info.resourceID', default='')
+  if not resource_id:
+    # SPASE schema requires ResourceID to match [^:]+://[^/]+/.+
+    resource_id = f"spase://HAPI/{dataset['server']}/{dataset['id']}"
+  mapped = utilrsw.map_dict(dataset, map)
+  NumericalData = {'ResourceID': resource_id}
+  NumericalData.update(mapped)
   # Valid in 2.7.2 only?
-  Spase['NumericalData']['MeasurementType'] = "NotProvided"
+  NumericalData['MeasurementType'] = 'NotProvided'
+  # Normalize StartDate/StopDate to full datetime strings required by SPASE schema
+  ts = utilrsw.get_path(NumericalData, 'TemporalDescription.TimeSpan')
+  if isinstance(ts, dict):
+    for key in ('StartDate', 'StopDate'):
+      if key in ts:
+        ts[key] = _normalize_datetime(ts[key])
+  Spase['NumericalData'] = NumericalData
 
 
 def _add_Parameter(Spase, dataset, map):
@@ -102,7 +183,8 @@ def _add_Parameter(Spase, dataset, map):
     for parameter in parameters:
       Parameter = utilrsw.map_dict(parameter, map)
       Parameters.append(Parameter)
-      if 'units' in parameter and parameter['units'].lower() == 'UTC':
+      units = parameter.get('units', None)
+      if units is not None and parameter['units'].lower() == 'UTC':
         Parameter['Support'] = {'SupportQuantity': 'Temporal'}
       else:
         Parameter['Mixed'] = {'MixedQuantity': 'Other'}
@@ -223,13 +305,16 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   AccessInformation[1]['AccessURL']['URL'] = url
   AccessInformation[1]['Format'] = data_formats + AccessInformation[1]['Format']
 
-  languages, language_formats = script_info()
+  if False:
+    languages, language_formats = script_info()
 
-  desc = AccessInformation[2]['AccessURL']['Description'].format(languages=languages)
-  AccessInformation[2]['AccessURL']['Description'] = desc
-  url = AccessInformation[2]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
-  AccessInformation[2]['AccessURL']['URL'] = url
-  AccessInformation[2]['Format'] = language_formats
+    desc = AccessInformation[2]['AccessURL']['Description'].format(languages=languages)
+    AccessInformation[2]['AccessURL']['Description'] = desc
+    url = AccessInformation[2]['AccessURL']['URL'].format(server=dataset['server'], dataset=dataset['id'])
+    AccessInformation[2]['AccessURL']['URL'] = url
+    AccessInformation[2]['Format'] = language_formats
+  else:
+    del AccessInformation[2]
 
   licenseURL = utilrsw.get_path(dataset, 'info.licenseURL')
   if licenseURL is not None:
@@ -242,8 +327,10 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
         Rights = {'Rights': { 'RightsURI': url}}
         AccessInformation[i]['RightsList'].append(Rights)
 
-      key_order = ['RepositoryID', 'Acknowledgement', 'Availability', 'AccessURL', 'AccessRights', 'RightsList', 'Format']
-      AccessInformation[i] = utilrsw.reorder_dict(AccessInformation[i], key_order)
+  # TODO: This should be obtained from SPASE schema, not hardcoded here.
+  key_order = ['RepositoryID', 'Availability', 'AccessRights', 'RightsList', 'AccessURL', 'Format', 'Acknowledgement']
+  for i in range(len(AccessInformation)):
+    AccessInformation[i] = utilrsw.reorder_dict(AccessInformation[i], key_order)
 
   Spase['NumericalData']['AccessInformation'] = AccessInformation
 
@@ -351,14 +438,14 @@ def _add_ResourceHeader(Spase, dataset, about):
 
   Spase['NumericalData']['ResourceHeader']['InformationURL'] = informationURLs(dataset)
 
-  now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ')
+  now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
   Spase['NumericalData']['ResourceHeader']['ReleaseDate'] = now
 
   PersonID = about.get('x_SPASE_PersonID', 'UNKNOWN')
   Contacts = [{'PersonID': PersonID, 'Role': 'HostContact'}]
 
   # Need to add from dataset/info/contact
-  Contacts.append({'PersonID': 'UNKNOWN', 'Role': 'GeneralContact'})
+  #Contacts.append({'PersonID': 'UNKNOWN', 'Role': 'GeneralContact'})
 
   Spase['NumericalData']['ResourceHeader']['Contact'] = Contacts
 
@@ -393,6 +480,15 @@ def _add_ResourceHeader(Spase, dataset, about):
 
   Spase['NumericalData']['ResourceHeader']['Description'] = desc
 
+  # SPASE schema requires InformationURL after ReleaseDate/DOI/Contact
+  rh_key_order = ['ResourceName', 'AlternateName', 'DOI', 'ReleaseDate', 'RevisionHistory',
+                   'Description', 'Acknowledgement', 'PublicationInfo', 'Contact',
+                   'InformationURL', 'Association', 'PriorID']
+  Spase['NumericalData']['ResourceHeader'] = utilrsw.reorder_dict(
+    Spase['NumericalData']['ResourceHeader'], rh_key_order
+  )
+
 
 if __name__ == '__main__':
+  # xmllint --schema path/to/spase-latest.xsd <SPASE Record>.xml --noout
   run()

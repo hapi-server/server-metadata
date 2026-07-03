@@ -1,6 +1,5 @@
 import hapimeta
 
-
 def logger(base_name):
   import os
   import utilrsw
