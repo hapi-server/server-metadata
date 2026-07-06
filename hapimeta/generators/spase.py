@@ -106,6 +106,7 @@ def _read_schema():
   config = cfg['config']['Spase']
   schema_url = _schema_xsd_url(config['SchemaURL'], config['Version'])
   file = os.path.join(hapimeta.DATA_DIR, 'tmp', schema_url.split('/')[-1])
+  os.makedirs(os.path.dirname(file), exist_ok=True)
   if not os.path.exists(file):
     log.info(f"Downloading {schema_url} to {file}")
   else:
