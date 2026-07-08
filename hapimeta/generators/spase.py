@@ -303,10 +303,14 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
     serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
 
   RepositoryID = about.get('x_SPASE', {}).get('RepositoryID', None)
-  if RepositoryID is not None:
-    AccessInformation[0]['RepositoryID'] = RepositoryID
 
+  hapi_server_id = about.get('id', None)
   for i in range(len(AccessInformation)):
+    if RepositoryID is not None:
+      AccessInformation[i]['RepositoryID'] = RepositoryID
+    AccessInformation[i]['AccessURL']['Name'] = "HAPI Server"
+    if hapi_server_id is not None:
+      AccessInformation[i]['AccessURL']['Name'] = f"{hapi_server_id} HAPI Server"
     AccessInformation[i]['AccessURL']['ProductKey'] = dataset['id']
     AccessInformation[i]['Acknowledgement'] = serverCitation
 
