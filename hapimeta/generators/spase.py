@@ -196,7 +196,7 @@ def _add_Parameter(Spase, dataset, map):
       Parameter = utilrsw.map_dict(parameter, map)
       Parameters.append(Parameter)
       units = parameter.get('units', None)
-      if units is not None and parameter['units'].lower() == 'UTC':
+      if isinstance(units, str) and parameter['units'].lower() == 'UTC':
         Parameter['Support'] = {'SupportQuantity': 'Temporal'}
       else:
         Parameter['Mixed'] = {'MixedQuantity': 'Other'}
