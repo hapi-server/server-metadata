@@ -302,6 +302,10 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   else:
     serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
 
+  RepositoryID = about.get('x_SPASE', {}).get('RepositoryID', None)
+  if RepositoryID is not None:
+    AccessInformation[0]['RepositoryID'] = RepositoryID
+
   for i in range(len(AccessInformation)):
     AccessInformation[i]['AccessURL']['ProductKey'] = dataset['id']
     AccessInformation[i]['Acknowledgement'] = serverCitation
@@ -453,7 +457,8 @@ def _add_ResourceHeader(Spase, dataset, about):
   now = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
   Spase['NumericalData']['ResourceHeader']['ReleaseDate'] = now
 
-  PersonID = about.get('x_SPASE_PersonID', 'UNKNOWN')
+  x_SPASE = about.get('x_SPASE', {})
+  PersonID = x_SPASE.get('PersonID', 'UNKNOWN')
   Contacts = [{'PersonID': PersonID, 'Role': 'HostContact'}]
 
   # Need to add from dataset/info/contact

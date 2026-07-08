@@ -9,7 +9,6 @@ def run():
   args = hapimeta.cli()
   servers = args.servers
   if servers is None and args.n_servers is not None:
-    import utilrsw
     abouts_all = utilrsw.read(f'{cfg["repo_dir"]}/abouts.json')
     servers = [about['id'] for about in abouts_all[:args.n_servers]]
   log.info(f"Generating abouts for {servers}")
