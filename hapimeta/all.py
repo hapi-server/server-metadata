@@ -21,6 +21,13 @@ def all(log):
     file_path = os.path.join(hapimeta.DATA_DIR, cfg_common['ALL_FILE'])
 
   log.info(f'Reading {file_path}')
+  if not os.path.exists(file_path):
+    log.error(
+      f"File not found: {file_path}. "
+      f"Run 'python run.py catalog' first to generate it, "
+      f"or pass --use-remote-catalog to download it without locally generating it."
+    )
+    raise FileNotFoundError(f"File not found: {file_path}")
   all = utilrsw.read(file_path)
 
 
