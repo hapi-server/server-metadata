@@ -15,7 +15,7 @@ def all(log):
       log.error(f"Failed to get {url}")
       return None
     if info['status_code'] == 304:
-      log.info(f"Remote file same as cached file. Using cached file: {file}")
+      log.info(f"  Remote file same as cached file. Using cached file: {file}")
     file_path = info['cache_file']
   else:
     file_path = os.path.join(hapimeta.DATA_DIR, cfg_common['ALL_FILE'])
@@ -34,7 +34,11 @@ def all(log):
   subset = False
   if args.servers is not None:
     subset = True
+    all_ids = set(all.keys())
     all = {server_id: server_meta for server_id, server_meta in all.items() if server_id in args.servers}
+    if not all:
+      log.error(f'No matching server ids found in catalogs-all.pkl. Check that --servers has {args.servers} and that the server ids exist in catalogs-all.pkl: {all_ids}')
+      exit(1)
   if args.n_servers is not None:
     subset = True
     all = dict(list(all.items())[:args.n_servers])
