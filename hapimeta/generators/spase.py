@@ -500,10 +500,14 @@ def _add_ResourceHeader(Spase, dataset, about):
       if DOI is not None:
         Spase['NumericalData']['ResourceHeader']['DOI'] = DOI
 
+      # This is not in mapping spreadsheet.
       extra += f'HAPI {field}: {value}. '
 
   extra = extra.strip()
 
+  # info/description was mapped to
+  #   Spase['NumericalData']['ResourceHeader']['Description']
+  # already based on mapping in run.json.
   desc = Spase['NumericalData']['ResourceHeader'].get('Description', '')
   desc = desc.rstrip('.')
   if desc == '':
