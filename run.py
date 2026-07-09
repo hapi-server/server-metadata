@@ -39,17 +39,11 @@ def main():
       module = importlib.import_module(module_name)
       module.run()
     except Exception as e:
-      # Include full stack trace with line numbers in the error message
-      import traceback
-      stack_trace = traceback.format_exc()
-      body = f"Error running {module_name}: \n{stack_trace}"
-      print(body)
-      if args.email_on_exception:
-        try:
-          _email('rweigel@gmu.edu', "Uncaught hapimeta/run.py exception", body)
-        except Exception as e2:
-          print(f"Error sending email: {e2}")
+      # Trigger the global exception handler, which the logger is configured to
+      # handle by writing the exception to the console and to the log file.
+      sys.excepthook(type(e), e, e.__traceback__)
       continue
+
     hapimeta.error.combine()
 
 
