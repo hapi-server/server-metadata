@@ -108,6 +108,10 @@ def _update(servers, lasts_fname, defaults_fname,
       log.info(msg)
       x_LastUpdateError = msg
 
+    if 'x_url' not in default:
+      log.error(f"Cannot continue. default about missing x_url: {default}")
+      continue
+
     if default['x_url'] not in lasts_dict:
       log.info(f"New server found in {lasts_fname}: {default['x_url']}")
     last = lasts_dict.get(default['x_url'], {})

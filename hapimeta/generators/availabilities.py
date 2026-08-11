@@ -44,36 +44,38 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
   plt.rcParams['font.family'] = ['Times New Roman', 'DejaVu Sans']
 
   special_chars = {
-    'ts': '\u2002',
+    'ts': '\u2002', # en space
     'rarrow': '\u2192 ',
     'larrow': '\u2190'
   }
   server_file = os.path.basename(server)
 
-  def newfig():
+  def newfig(height=None):
     plt.close('all')
     fig, ax = plt.subplots()
-    fig.set_figheight(fig_height)
+    fig.set_figheight(fig_height if height is None else height)
     fig.set_figwidth(fig_width)
     return fig, ax
 
-  def config(ax, starts_min, stops_max, title=None, left_margin=None, right_margin=None):
+  def ax_config(ax, starts_min, stops_max, title=None, fixed_rows=False):
 
     import datetick
 
     if title is not None:
-      ax.text(0.5, 1.0, title, transform=ax.transAxes, va='top', ha='center', fontsize=10, backgroundcolor='white')
+      ax.set_title(title, fontsize=10, backgroundcolor='white')
+
     ax.set_xlim([starts_min, stops_max])
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
+    if fixed_rows:
+      ax.set_ylim([0.5, lines_per_plot + 0.5])
+    ax.set_yticks(ticks=[])
+
+    for pos in ['top', 'bottom', 'left']:
+      ax.spines[pos].set_visible(False)
+
     ax.grid(axis='x', which='minor', alpha=0.5, linestyle=':')
     ax.grid(axis='x', which='major', color='k', alpha=0.5)
-    ax.set_yticks(ticks=[])
+
     datetick.datetick('x', axes=ax)
-    if left_margin is not None and right_margin is not None:
-      plt.subplots_adjust(left=left_margin, right=right_margin)
-    plt.subplots_adjust(top=1.0, bottom=0.03)
 
   def id_strip(id):
     for key, value in special_chars.items():
@@ -87,7 +89,7 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       if not os.path.exists(os.path.dirname(_fname)):
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
-      plt.savefig(f'{_fname}')
+      plt.savefig(f'{_fname}', bbox_inches='tight', pad_inches=0)
       utilrsw.svg.svglinks(_fname, link_attribs={'target': '_blank'}, debug=cfg['debug_svglinks'])
 
     if 'png' in cfg['savefig_fmts']:
@@ -95,23 +97,32 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       if not os.path.exists(os.path.dirname(_fname)):
         os.makedirs(os.path.dirname(_fname))
       log.info(f'Writing {_fname}')
-      plt.savefig(f'{_fname}', dpi=cfg['dpi'])
+      plt.savefig(f'{_fname}', dpi=cfg['dpi'], bbox_inches='tight', pad_inches=0)
 
     return f'{server_file}.{fn}'
 
-  def draw(ax, n, lines_per_plot, starts, stops, datasets, start_text, max_len=None):
-    gid_bar = f'https://hapi-server.org/servers/#server={server}&dataset={id_strip(datasets[n])}'
-    gid_txt = f'https://hapi-server.org/plot/?server={server_url}&dataset={id_strip(datasets[n])}&format=gallery&usecache=true&usedatacache=true&mode=thumb'
+  def draw(ax, n, lines_per_plot, starts, stops, datasets,
+           start_text, max_len=None, row_n=None):
+    base = "https://hapi-server.org"
+    gid_bar = f'{base}/servers/#server={server}&dataset={id_strip(datasets[n])}'
+    gid_txt = f'{base}/plot/?server={server_url}&dataset={id_strip(datasets[n])}&format=gallery&usecache=true&usedatacache=true&mode=thumb'
 
-    y = lines_per_plot - n
+    if row_n is None:
+      row_n = n
+    y = lines_per_plot - row_n
+    ax.plot([starts[n], stops[n]], [y, y], gid=gid_bar, linewidth=0.5)
+
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     color = colors[n % len(colors)]
-    ax.plot([starts[n], stops[n]], [y, y], gid=gid_bar, linewidth=0.5)
-    rect = plt.Rectangle(
-              (starts[n], y - 0.5),
-              stops[n] - starts[n],
-              0.8,
-              color=color, alpha=1, gid=gid_bar)
+    kwargs = {
+      "color": color,
+      "alpha": 1,
+      "gid": gid_bar
+    }
+    height = 0.8
+    xy = (starts[n], y - height/2)
+    width = stops[n] - starts[n]
+    rect = plt.Rectangle(xy, width, height, **kwargs)
     rect.set_linewidth(0)
     ax.add_patch(rect)
 
@@ -127,15 +138,21 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       'gid': gid_txt,
       'bbox': dict(facecolor='white', alpha=0.5, pad=0, lw=0)
     }
-    ax.text(stops[n], y, label, **text_kwargs)
+    if stops[n] <= min(starts):
+      ax.text(min(starts), y, label, **text_kwargs)
+    else:
+      ax.text(stops[n], y, label, **text_kwargs)
+
     if start_text[n] is not None:
       text_kwargs['horizontalalignment'] = 'right'
       ax.text(starts[n], y, start_text[n], **text_kwargs)
 
   n_plots = math.ceil(len(datasets)/lines_per_plot)
   pad = max(1, math.ceil(math.log10(n_plots + 1)))
+
   stops_max = datetime.datetime.now() + datetime.timedelta(days=5*365)
   starts_min = datetime.datetime(1960, 1, 1, 0, 0, 0)
+
   max_len = 0
   start_text = []
   for ds in range(len(datasets)):
@@ -150,48 +167,45 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
       start_text.append(None)
     max_len = max(max_len, len(datasets[ds]))
 
-  fig, ax = newfig()
-  for n in range(len(datasets)):
-    draw(ax, n, lines_per_plot, starts, stops, datasets, start_text, max_len=max_len)
+  starts_min = min(starts)
+  stops_max = max(stops)
 
-  config(ax, starts_min, stops_max)
-  left_margin, bottom_margin, width, height = ax.get_position().bounds
-  if cfg['debug_layout']:
-    savefig('all-before-tight-layout')
-    print(f'Left margin: {left_margin}')
-    print(f'Bottom margin: {bottom_margin}')
-    print(f'Width: {width}')
-    print(f'Height: {height}')
-  fig.tight_layout()
-  left_margin, bottom_margin, width, height = ax.get_position().bounds
-  if cfg['debug_layout']:
-    savefig('all-after-tight-layout')
-    print(f'Left margin: {left_margin}')
-    print(f'Bottom margin: {bottom_margin}')
-    print(f'Width: {width}')
-    print(f'Height: {height}')
-  right_margin = width + left_margin
+
+  height = fig_height
+  if len(datasets) < lines_per_plot:
+    # Delta is expected hight of title and x-axis labels
+    # Ideally we would compute exact value.
+    delta = 0.5
+    height = delta + (fig_height * len(datasets)/ lines_per_plot)
+  fig, ax = newfig(height=height)
 
   fn = 0
   files = []
-  fig, ax = newfig()
+  row_n = 0
   for n in range(len(datasets)):
-    draw(ax, n, lines_per_plot, starts, stops, datasets, start_text)
+    draw(ax, n, lines_per_plot, starts, stops, datasets, start_text, row_n=row_n)
+    row_n += 1
     if (n + 1) % lines_per_plot == 0:
       fn = fn + 1
       fn_padded = f'{fn:0{pad}d}'
       title_ = title + f' | {fn}/{n_plots}'
-      config(ax, starts_min, stops_max, title_, left_margin, right_margin)
+      ax_config(ax, starts_min, stops_max, title_, fixed_rows=True)
       file = savefig(fn_padded)
       files.append(file)
 
-      fig, ax = newfig()
+      remaining_lines = len(datasets) - (n + 1)
+      if remaining_lines > 0:
+        height = fig_height
+        if remaining_lines < lines_per_plot:
+          height *= remaining_lines / lines_per_plot
+        fig, ax = newfig(height=height)
+        row_n = 0
 
   if (n + 1) % lines_per_plot != 0:
     fn = fn + 1
     fn_padded = f'{fn:0{pad}d}'
     title_ = title + f' | {fn}/{n_plots}'
-    config(ax, starts_min, stops_max, title_, left_margin, right_margin)
+    ax_config(ax, starts_min, stops_max, title_, fixed_rows=False)
     file = savefig(fn_padded)
     files.append(file)
 
@@ -200,66 +214,15 @@ def plot(server, server_url, server_dir, title, datasets, starts, stops,
 
 def html(files, server_dir, server):
   import base64
+  from string import Template
+
   server_file = os.path.basename(server)
 
-  html_content = """
-  <!DOCTYPE html>
-  <html lang="en">
-  <script>
-  function searchKey() {
-    if (navigator.platform.toUpperCase().startsWith("MAC")) {
-      return "⌘+F";
-    }
-    return "Ctrl+F";
-  }
-  </script>
-  <head>
-    <style>
-      body::-webkit-scrollbar {
-        -webkit-appearance: none;
-        width: 7px;
-        height: 7px;
-      }
-      body::-webkit-scrollbar-thumb {
-          border-radius: 4px;
-          background-color: rgba(0,0,0,.5);
-          box-shadow: 0 0 1px rgba(255,255,255,.5);
-      }
-    </style>
-    <link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAA0ODwAASP8Ab/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIiIgAAAAAAAAAAAAAAAAAAAAAAAAAAADMzMzMzMwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARERERAAAAAAAAAAAAAAAAAAAAAAAAAAAEREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAA//8AAAP/AAD//wAA//8AAAAPAAD//wAA//8AAP//AAAA/wAA//8AAP//AAAAAAAA//8AAP//AAD//wAA">
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5X7EXZ3BBW"></script><script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);} gtag("js", new Date());gtag("config", "G-5X7EXZ3BBW");</script>
-    <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
-    <meta name="keywords" content="TITLE HAPI Heliophysics Data Availability UI">
-    <meta name="description"
-      content="HAPI Server Availability for TITLE; https://github.com/hapi-server/servers">
-    <meta name="keywords" content="TITLE">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TITLE</title>
-  </head>
-  <body>
-      Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=SERVER_ID" target="_blank">SERVER_ID</a> HAPI server. 
-      <a href="https://hapi-server.org/meta/availabilities/SERVER_ID/SERVER_FILE.csv" target="_blank">Time range data</a> | 
-      <a href="https://hapi-server.org/meta/availabilities/SERVER_ID/" target="_blank">Plot files</a> |
-      <a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a>
-    SEARCH
-    DIVS
-  </body>
-  </html>
-  """
+  # Read HTML template from external file
+  html_template_path = os.path.join(os.path.dirname(__file__), 'availabilities.html')
+  with open(html_template_path, 'r', encoding='utf-8') as f:
+    template = Template(f.read())
 
-  search = """
-    <br>
-    <b>Search:</b>
-    <ul style="margin-top:0.2em; margin-bottom:0.2em; padding-inline-start: 1.5em;">
-      <li>Use <script>document.write(searchKey());</script> to search for a dataset.</li>
-      <li>Click a dataset name to view information about dataset.</li>
-      <li>Click a bar to view plots of parameters in dataset.</li>
-    </ul>
-  """
-
-  html_content = '\n'.join([line[2:] for line in html_content.split('\n')])
-  html_content = html_content[1:]
   divs_svg = ''
   divs_png = ''
   file_svg = None
@@ -278,20 +241,25 @@ def html(files, server_dir, server):
         png_base64 = base64.b64encode(png_data).decode('utf-8')
         divs_png += f'<img width="100%" src="data:image/png;base64,{png_base64}" alt="{file}">\n'
 
-  html_content = html_content.replace('SERVER_ID', server)
-  html_content = html_content.replace('SERVER_FILE', server_file)
-
   if 'svg' in cfg['savefig_fmts'] and file_svg is not None:
-    html_content_svg = html_content
-    html_content_svg = html_content_svg.replace('DIVS', divs_svg)
-    html_content_svg = html_content_svg.replace('SEARCH', search)
+    html_content_svg = template.substitute(
+      title=server,
+      server_id=server,
+      server_file=server_file,
+      search_note_display='block',
+      divs=divs_svg
+    )
     fname = os.path.join(os.path.dirname(file_svg), f'{server}.html')
     write(fname, html_content_svg)
 
   if 'png' in cfg['savefig_fmts'] and file_png is not None:
-    html_content_png = html_content
-    html_content_png = html_content_png.replace('DIVS', divs_png)
-    html_content_png = html_content_png.replace('SEARCH', '')
+    html_content_png = template.substitute(
+      title=server,
+      server_id=server,
+      server_file=server_file,
+      search_note_display='none',
+      divs=divs_png
+    )
     fname = os.path.join(os.path.dirname(file_png), f'{server}.html')
     write(fname, html_content_png)
 
