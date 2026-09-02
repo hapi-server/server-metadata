@@ -1,4 +1,5 @@
 import os
+from urllib.parse import unquote, urlparse
 
 import utilrsw
 
@@ -72,12 +73,12 @@ def spase(server_id, server_meta, schema, max_datasets=None):
 
     _add_NumericalData(Spase, dataset, cfg['config']['hapi2spase']['dataset'])
     _add_ResourceHeader(Spase, dataset, about)
-    _add_SpatialMapping(Spase, dataset)
+    _add_SpatialCoverage(Spase, dataset)
     _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
     _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
     key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
-                 'MeasurementType', 'TemporalDescription', 'Caveats', 'SpatialMapping', 'Parameter']
+                 'MeasurementType', 'TemporalDescription', 'Caveats', 'SpatialCoverage', 'Parameter']
     Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
 
     _write(Spase, server_id, dataset['id'], out_path)
@@ -165,11 +166,9 @@ def _normalize_datetime(value):
   E.g. '2016-12-31Z' -> '2016-12-31T00:00:00Z'
        '2016-12-31'  -> '2016-12-31T00:00:00Z'
   """
-  if not isinstance(value, str) or 'T' in value:
-    return value
-  # Strip trailing Z, append time, re-add Z
-  bare = value.rstrip('Z')
-  return bare + 'T00:00:00Z'
+  from hapiclient import hapitime2datetime
+  value_dt = hapitime2datetime(value)[0]
+  return value_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
 def _add_NumericalData(Spase, dataset, map):
@@ -180,8 +179,10 @@ def _add_NumericalData(Spase, dataset, map):
   mapped = utilrsw.map_dict(dataset, map)
   NumericalData = {'ResourceID': resource_id}
   NumericalData.update(mapped)
-  # Valid in 2.7.2 only?
+
+  # Valid in 2.7.2+
   NumericalData['MeasurementType'] = 'NotProvided'
+
   # Normalize StartDate/StopDate to full datetime strings required by SPASE schema
   ts = utilrsw.get_path(NumericalData, 'TemporalDescription.TimeSpan')
   if isinstance(ts, dict):
@@ -354,12 +355,27 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   if licenseURL is not None:
     if isinstance(licenseURL, str):
       licenseURL = [licenseURL]
+
+    Rights = []
+    for url in licenseURL:
+      Right = {'RightsURI': url}
+      parsed = urlparse(url)
+      path_parts = parsed.path.rstrip('/').split('/')
+      if parsed.hostname in ('spdx.org', 'www.spdx.org') and len(path_parts) >= 3 and path_parts[-2] == 'licenses':
+        identifier = unquote(path_parts[-1])
+        identifier = identifier.removesuffix('.html')
+        if identifier:
+          Right = {
+            'SchemeURI': f'https://spdx.org/licenses/{identifier}.html',
+            'RightsIdentifierScheme': 'SPDX',
+            'RightsIdentifier': identifier,
+            'RightsURI': url
+          }
+      Rights.append(Right)
+
     for i in range(len(AccessInformation)):
-      AccessInformation[i]['RightsList'] = []
-      for url in licenseURL:
-        # TODO?: If spdx.org, could derive other fields such as RightsIdentifierScheme
-        Rights = {'Rights': { 'RightsURI': url}}
-        AccessInformation[i]['RightsList'].append(Rights)
+      # RightsList occurs at most once, while Rights may occur multiple times.
+      AccessInformation[i]['RightsList'] = {'Rights': copy.deepcopy(Rights)}
 
   # TODO: This should be obtained from SPASE schema, not hardcoded here.
   key_order = ['RepositoryID', 'Availability', 'AccessRights', 'RightsList', 'AccessURL', 'Format', 'Acknowledgement']
@@ -369,34 +385,34 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   Spase['NumericalData']['AccessInformation'] = AccessInformation
 
 
-def _add_SpatialMapping(Spase, dataset):
+def _add_SpatialCoverage(Spase, dataset):
   geoLocation = utilrsw.get_path(dataset, 'info.geoLocation')
 
   if False and (geoLocation is not None):
-    Spase['NumericalData']['SpatialMapping'] = {
+    Spase['NumericalData']['SpatialCoverage'] = {
       'centerLongitude': geoLocation[0],
       'centerLatitude': geoLocation[1]
     }
     if len(geoLocation) > 2:
-      Spase['NumericalData']['SpatialMapping']['centerElevation'] = geoLocation[2]
-    desc = 'The SpatialMapping values are from the geoLocation object in HAPI metadata. '
+      Spase['NumericalData']['SpatialCoverage']['centerElevation'] = geoLocation[2]
+    desc = 'The SpatialCoverage values are from the geoLocation object in HAPI metadata. '
     desc += 'Warning: In SPASE, centerLongitude and centerLatitude are in defined to be in GEO and '
     desc += 'centerElevation in WGS84. In HAPI, their equivalents are defined to be in WGS84. '
     desc += 'The values given for centerLongitude and centerLatitude are direct copies '
     desc += 'of content in the HAPI geoLocation and have not '
     desc += 'been converted from WGS84 to GEO.'
-    Spase['NumericalData']['SpatialMapping']['Description'] = desc
+    Spase['NumericalData']['SpatialCoverage']['Description'] = desc
 
   point = utilrsw.get_path(dataset, 'info.location.point')
   if point is not None:
     coordinateSystemName = utilrsw.get_path(dataset, 'info.location.coordinateSystemName')
-    if coordinateSystemName == 'GEO':
-      Spase['NumericalData']['SpatialMapping'] = {
+    if coordinateSystemName == 'GEO': # Need restriction to coordinateSystemRepresentation === 'spherical'
+      Spase['NumericalData']['SpatialCoverage'] = {
         'centerLongitude': point[0],
         'centerLatitude': point[1]
       }
       if len(point) > 2:
-        Spase['NumericalData']['SpatialMapping']['centerElevation'] = point[2]
+        Spase['NumericalData']['SpatialCoverage']['centerElevation'] = point[2]
 
 
 def _add_ResourceHeader(Spase, dataset, about):
@@ -453,8 +469,10 @@ def _add_ResourceHeader(Spase, dataset, about):
 
         if 'aboutURL' in additional:
           desc += f"Metadata description: {additional['aboutURL']}"
+
         if 'schemaURL' in additional:
           desc += f". Metadata schema: {additional['schemaURL']}."
+
 
         note = 'The information in this InformationURL node is derived from an additionalMetadata node in HAPI /info response'
 

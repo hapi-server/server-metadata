@@ -108,7 +108,7 @@
     "config": {
       "Spase": {
         "SchemaURL": "http://www.spase-group.org/data/schema",
-        "Version": "2.7.0"
+        "Version": "2.7.2"
       },
       "AccessInformation": [
         {
