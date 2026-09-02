@@ -545,6 +545,18 @@ def _add_ResourceHeader(Spase, dataset, about):
 
   Spase['NumericalData']['ResourceHeader']['Description'] = desc
 
+  Note = ("This release date is the date the initial SPASE record is created "
+          "by an automated process that does not currently track changes. "
+          "The automation process updates the metadata without updating this date. "
+          "This is not a revision event, it is an initial creation event.")
+
+  Spase['NumericalData']['ResourceHeader']['RevisionHistory'] = {
+    'RevisionEvent': {
+      'ReleaseDate': now,
+      'Note': Note
+    }
+  }
+
   # SPASE schema requires InformationURL after ReleaseDate/DOI/Contact
   rh_key_order = ['ResourceName', 'AlternateName', 'DOI', 'ReleaseDate', 'RevisionHistory',
                    'Description', 'Acknowledgement', 'PublicationInfo', 'Contact',
