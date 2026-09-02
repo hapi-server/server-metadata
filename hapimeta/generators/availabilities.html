@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>$title</title>
+  <meta name="keywords" content="$title HAPI Heliophysics Data Availability UI">
+  <meta name="description"
+    content="HAPI Server Availability for $title; https://github.com/hapi-server/servers">
+  <style>
+    body::-webkit-scrollbar {
+      -webkit-appearance: none;
+      width: 7px;
+      height: 7px;
+    }
+    body::-webkit-scrollbar-thumb {
+        border-radius: 4px;
+        background-color: rgba(0,0,0,.5);
+        box-shadow: 0 0 1px rgba(255,255,255,.5);
+    }
+  </style>
+  <script>
+  function searchKey() {
+    if (navigator.platform.toUpperCase().startsWith("MAC")) {
+      return "⌘+F";
+    }
+    return "Ctrl+F";
+  }
+  </script>
+  <link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAA0ODwAASP8Ab/8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIiIgAAAAAAAAAAAAAAAAAAAAAAAAAAADMzMzMzMwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARERERAAAAAAAAAAAAAAAAAAAAAAAAAAAEREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAA//8AAAP/AAD//wAA//8AAAAPAAD//wAA//8AAP//AAAA/wAA//8AAP//AAAAAAAA//8AAP//AAD//wAA">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5X7EXZ3BBW"></script><script>window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);} gtag("js", new Date());gtag("config", "G-5X7EXZ3BBW");</script>
+</head>
+<body>
+    Time range of datasets available from the <a href="https://hapi-server.org/servers/#server=$server_id" target="_blank">$server_id</a> HAPI server. 
+    <a href="https://hapi-server.org/meta/availabilities/$server_id/$server_file.csv" target="_blank">Time range data</a> | 
+    <a href="https://hapi-server.org/meta/availabilities/$server_id/" target="_blank">Plot files</a> |
+    <a href="https://github.com/hapi-server/server-metadata" target="_blank">Plot generation code</a>
+    <br>
+    <div id="search-note" style="display: $search_note_display;">
+      <b>Search:</b>
+      <ul style="margin-top:0.2em; margin-bottom:0.2em; padding-inline-start: 1.5em;">
+        <li>Use <script>document.write(searchKey());</script> to search for a dataset.</li>
+        <li>Click a dataset name to view information about dataset.</li>
+        <li>Click a bar to view plots of parameters in dataset.</li>
+      </ul>
+    </div>
+$divs
+</body>
+</html>
