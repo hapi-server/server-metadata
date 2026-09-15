@@ -146,7 +146,7 @@ def _validate(Spase, schema, server_id, dataset_id, out_path, exit_on_exception=
       doc = etree.fromstring(f.read())
     if not schema.validate(doc):
       for error in schema.error_log:
-        log.error(f'        {error}')
+        log.error(f'        {xml_file}: {error}')
       if exit_on_exception:
         raise Exception(f"SPASE validation failed for {xml_file}")
     else:
@@ -183,7 +183,7 @@ def _normalize_datetime(value):
        '2016-12-31'  -> '2016-12-31T00:00:00Z'
   """
   from hapiclient import hapitime2datetime
-  value_dt = hapitime2datetime(value)[0]
+  value_dt = hapitime2datetime(value, allow_missing_Z=True)[0]
   return value_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
