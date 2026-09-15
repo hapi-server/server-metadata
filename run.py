@@ -34,6 +34,8 @@ def main():
       sys.argv.extend(['--n-datasets', str(args.n_datasets)])
     if args.use_remote_catalog:
       sys.argv.append('--use-remote-catalog')
+    if args.exit_on_exception:
+      sys.argv.append('--exit-on-exception')
     try:
       module_name = f'hapimeta.generators.{command_name}'
       module = importlib.import_module(module_name)
@@ -42,6 +44,8 @@ def main():
       # Trigger the global exception handler, which the logger is configured to
       # handle by writing the exception to the console and to the log file.
       sys.excepthook(type(e), e, e.__traceback__)
+      if args.exit_on_exception:
+        raise
       continue
 
     hapimeta.error.combine()

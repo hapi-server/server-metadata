@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.parse import unquote, urlparse
 
 import utilrsw
@@ -19,10 +20,16 @@ def run():
   schema = _read_schema()
   for server_id in all.keys():
     log.info(f'{server_id}')
-    spase(server_id, all[server_id], schema, max_datasets=args.n_datasets)
+    spase(
+      server_id,
+      all[server_id],
+      schema,
+      max_datasets=args.n_datasets,
+      exit_on_exception=args.exit_on_exception,
+    )
 
 
-def spase(server_id, server_meta, schema, max_datasets=None):
+def spase(server_id, server_meta, schema, max_datasets=None, exit_on_exception=False):
 
   Spase = _spase_stub()
 
@@ -78,19 +85,19 @@ def spase(server_id, server_meta, schema, max_datasets=None):
     _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
     key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
-                 'MeasurementType', 'TemporalDescription', 'Caveats', 'SpatialCoverage', 'Parameter']
+                 'MeasurementType', 'TemporalDescription', 'SpatialCoverage', 'Caveats', 'Parameter']
     Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
 
     _write(Spase, server_id, dataset['id'], out_path)
 
-    _validate(Spase, schema, server_id, dataset['id'], out_path)
+    _validate(Spase, schema, server_id, dataset['id'], out_path, exit_on_exception)
 
   return Spase
 
 
 def _write(Spase, server_id, dataset_id, out_path):
   json_file = os.path.join(out_path, server_id, f"{dataset_id}.json")
-  log.info(f'      Writing {json_file}')
+  log.info(f'       Writing {json_file}')
   utilrsw.write(json_file, Spase)
 
   import xmltodict
@@ -99,7 +106,7 @@ def _write(Spase, server_id, dataset_id, out_path):
   attr_keys = ('xmlns', 'xmlns:xsi', 'xsi:schemaLocation')
   xml_root = {(f'@{k}' if k in attr_keys else k): v for k, v in Spase.items()}
   xml_content = xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
-  log.info(f'      Writing {xml_file}')
+  log.info(f'       Writing {xml_file}')
   utilrsw.write(xml_file, xml_content)
 
 
@@ -116,7 +123,7 @@ def _read_schema():
   return response['data']
 
 
-def _validate(Spase, schema, server_id, dataset_id, out_path):
+def _validate(Spase, schema, server_id, dataset_id, out_path, exit_on_exception=False):
   from lxml import etree
 
   # Alternative:
@@ -127,14 +134,17 @@ def _validate(Spase, schema, server_id, dataset_id, out_path):
 
   try:
     schema = etree.XMLSchema(etree.fromstring(schema))
-    log.info(f'      Validating {xml_file} against {schema_url.split("/")[-1]}')
+    log.info(f'       Validating {xml_file} against {schema_url.split("/")[-1]}')
     with open(xml_file, 'rb') as f:
       doc = etree.fromstring(f.read())
     if not schema.validate(doc):
       for error in schema.error_log:
         log.error(f'        {error}')
+      if exit_on_exception:
+        log.error(f'        Exiting due to SPASE validation failure for {xml_file} and --exit-on-exception command line argument.')
+        os._exit(1)
     else:
-      log.info('        Valid')
+      log.info('       Valid')
   except Exception as e:
     log.warning(f'       Uncaught exception: {e}')
 
@@ -173,7 +183,7 @@ def _normalize_datetime(value):
 
 def _add_NumericalData(Spase, dataset, map):
   resource_id = utilrsw.get_path(dataset, 'info.resourceID', default='')
-  if not resource_id:
+  if not isinstance(resource_id, str) or re.fullmatch(r'[^:]+://[^/]+/.+', resource_id) is None:
     # SPASE schema requires ResourceID to match [^:]+://[^/]+/.+
     resource_id = f"spase://HAPI/{dataset['server']}/{dataset['id']}"
   mapped = utilrsw.map_dict(dataset, map)
@@ -377,10 +387,17 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
       # RightsList occurs at most once, while Rights may occur multiple times.
       AccessInformation[i]['RightsList'] = {'Rights': copy.deepcopy(Rights)}
 
-  # TODO: This should be obtained from SPASE schema, not hardcoded here.
-  key_order = ['RepositoryID', 'Availability', 'AccessRights', 'RightsList', 'AccessURL', 'Format', 'Acknowledgement']
+  # TODO: These should be obtained from SPASE schema, not hardcoded here.
+  access_info_key_order = ['RepositoryID', 'Availability', 'AccessRights',
+                           'RightsList', 'AccessURL', 'Format',
+                           'Acknowledgement']
+  access_url_key_order = ['Name', 'URL', 'Style', 'ProductKey', 'Description',
+                          'Language']
   for i in range(len(AccessInformation)):
-    AccessInformation[i] = utilrsw.reorder_dict(AccessInformation[i], key_order)
+    AccessInformation[i]['AccessURL'] = utilrsw.reorder_dict(
+      AccessInformation[i]['AccessURL'], access_url_key_order
+    )
+    AccessInformation[i] = utilrsw.reorder_dict(AccessInformation[i], access_info_key_order)
 
   Spase['NumericalData']['AccessInformation'] = AccessInformation
 
@@ -388,31 +405,24 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
 def _add_SpatialCoverage(Spase, dataset):
   geoLocation = utilrsw.get_path(dataset, 'info.geoLocation')
 
-  if False and (geoLocation is not None):
+  if geoLocation is not None:
     Spase['NumericalData']['SpatialCoverage'] = {
-      'centerLongitude': geoLocation[0],
-      'centerLatitude': geoLocation[1]
+      'CoordinateSystem': {
+        'CoordinateRepresentation': 'Spherical',
+        'CoordinateSystemName': 'WGS84'
+      },
+      'CenterLatitude': geoLocation[1],
+      'CenterLongitude': geoLocation[0]
     }
     if len(geoLocation) > 2:
-      Spase['NumericalData']['SpatialCoverage']['centerElevation'] = geoLocation[2]
-    desc = 'The SpatialCoverage values are from the geoLocation object in HAPI metadata. '
-    desc += 'Warning: In SPASE, centerLongitude and centerLatitude are in defined to be in GEO and '
-    desc += 'centerElevation in WGS84. In HAPI, their equivalents are defined to be in WGS84. '
-    desc += 'The values given for centerLongitude and centerLatitude are direct copies '
-    desc += 'of content in the HAPI geoLocation and have not '
-    desc += 'been converted from WGS84 to GEO.'
-    Spase['NumericalData']['SpatialCoverage']['Description'] = desc
+      Spase['NumericalData']['SpatialCoverage']['CenterElevation'] = geoLocation[2]
+    Spase['NumericalData']['SpatialCoverage']['Description'] = "Longitude and Latitude are given in degrees. Elevation is given in meters."
 
-  point = utilrsw.get_path(dataset, 'info.location.point')
-  if point is not None:
-    coordinateSystemName = utilrsw.get_path(dataset, 'info.location.coordinateSystemName')
-    if coordinateSystemName == 'GEO': # Need restriction to coordinateSystemRepresentation === 'spherical'
-      Spase['NumericalData']['SpatialCoverage'] = {
-        'centerLongitude': point[0],
-        'centerLatitude': point[1]
-      }
-      if len(point) > 2:
-        Spase['NumericalData']['SpatialCoverage']['centerElevation'] = point[2]
+  #point = utilrsw.get_path(dataset, 'info.location.point')
+  # TODO: Can do mapping of vectorComponents of latitude, longitude, and altitude.
+  #       If anything else, can't map.
+  #       Can map coordinate system if coordinateSystemSchema is SPASE in HAPI metadata.
+  #       Otherwise, would need to develop custom mapping for other coordinateSystemSchemas.
 
 
 def _add_ResourceHeader(Spase, dataset, about):
@@ -487,6 +497,10 @@ def _add_ResourceHeader(Spase, dataset, about):
 
   if 'ResourceHeader' not in Spase['NumericalData']:
     Spase['NumericalData']['ResourceHeader'] = {}
+
+  resource_header = Spase['NumericalData']['ResourceHeader']
+  if not resource_header.get('ResourceName'):
+    resource_header['ResourceName'] = dataset['id']
 
   Spase['NumericalData']['ResourceHeader']['InformationURL'] = informationURLs(dataset)
 

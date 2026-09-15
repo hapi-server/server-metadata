@@ -128,7 +128,7 @@
           "RepositoryID": "spase://SMWG/Repository/?",
           "Availability": "Online",
           "AccessRights": "Open",
-          "Format": ["PNG", "SVG", "PDF"],
+          "Format": ["PNG", "PDF"],
           "Acknowledgement": "",
           "AccessURL": {
             "URL": "https://hapi-server.org/servers/#server={server}&dataset={dataset}",
@@ -169,8 +169,7 @@
         },
         "parameter": {
           "name": ["Name", "ParameterKey"],
-          "description": "Description",
-          "units": "Units"
+          "description": "Description"
         }
       }
     }

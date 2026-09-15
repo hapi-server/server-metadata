@@ -110,6 +110,11 @@ def cli():
     action='store_true',
     help='Send an email when run.py catches an uncaught generator exception.',
   )
+  parser.add_argument(
+    '--exit-on-exception',
+    action='store_true',
+    help='Exit after run.py catches an uncaught generator exception.',
+  )
 
   args, _ = parser.parse_known_args()
 
