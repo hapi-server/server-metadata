@@ -514,7 +514,7 @@ def _add_ResourceHeader(Spase, dataset, about):
   Spase['NumericalData']['ResourceHeader']['ReleaseDate'] = now
 
   x_SPASE = about.get('x_SPASE', {})
-  PersonID = x_SPASE.get('PersonID', 'UNKNOWN')
+  PersonID = x_SPASE.get('PersonID', 'spase://SMWG/Person/UNKNOWN')
   Contacts = [{'PersonID': PersonID, 'Role': 'HostContact'}]
 
   # Need to add from dataset/info/contact
