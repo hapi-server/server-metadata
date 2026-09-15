@@ -78,19 +78,26 @@ def spase(server_id, server_meta, schema, max_datasets=None, exit_on_exception=F
       dataset['info'] = info_dict
       log.info(f"  reread_info = True => overriding info from catalogs-all.pkl with that in {info_file}.")
 
-    _add_NumericalData(Spase, dataset, cfg['config']['hapi2spase']['dataset'])
-    _add_ResourceHeader(Spase, dataset, about)
-    _add_SpatialCoverage(Spase, dataset)
-    _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
-    _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
+    try:
+      _add_NumericalData(Spase, dataset, cfg['config']['hapi2spase']['dataset'])
+      _add_ResourceHeader(Spase, dataset, about)
+      _add_SpatialCoverage(Spase, dataset)
+      _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
+      _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
-    key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
-                 'MeasurementType', 'TemporalDescription', 'SpatialCoverage', 'Caveats', 'Parameter']
-    Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
+      key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
+                  'MeasurementType', 'TemporalDescription', 'SpatialCoverage', 'Caveats', 'Parameter']
+      Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
 
-    _write(Spase, server_id, dataset['id'], out_path)
+      _write(Spase, server_id, dataset['id'], out_path)
 
-    _validate(Spase, schema, server_id, dataset['id'], out_path, exit_on_exception)
+      _validate(Spase, schema, server_id, dataset['id'], out_path, exit_on_exception)
+    except Exception as e:
+      log.error(f"Error processing dataset {dataset['id']} from server {server_id}: {e}")
+      if exit_on_exception:
+        log.error(f"        Exiting due to error processing dataset {dataset['id']} from server {server_id} and --exit-on-exception command line argument.")
+        os._exit(1)
+      continue
 
   return Spase
 
@@ -141,8 +148,7 @@ def _validate(Spase, schema, server_id, dataset_id, out_path, exit_on_exception=
       for error in schema.error_log:
         log.error(f'        {error}')
       if exit_on_exception:
-        log.error(f'        Exiting due to SPASE validation failure for {xml_file} and --exit-on-exception command line argument.')
-        os._exit(1)
+        raise Exception(f"SPASE validation failed for {xml_file}")
     else:
       log.info('       Valid')
   except Exception as e:
