@@ -1,7 +1,8 @@
 def all(log):
+
   import os
-  import utilrsw
   import hapimeta
+  import utilrsw
 
   args = hapimeta.cli()
   cfg_common = hapimeta.config('common')

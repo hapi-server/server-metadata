@@ -34,7 +34,7 @@ def cli():
   import utilrsw
 
   available_commands = tuple(commands())
-  remote_catalog_commands = {'availabilities', 'relations', 'spase', 'table'}
+  remote_catalog_commands = {'availabilities', 'relations', 'spase', 'summary', 'table'}
 
   servers_help = 'Comma-separated list of server IDs'
   catalogs_file = os.path.join(hapimeta.DATA_DIR, 'catalogs.pkl')
