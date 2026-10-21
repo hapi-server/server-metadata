@@ -40,6 +40,11 @@ def main():
       module_name = f'hapimeta.generators.{command_name}'
       module = importlib.import_module(module_name)
       module.run()
+    except SystemExit as e:
+      if args.exit_on_exception:
+        raise
+      print(f"Generator '{command_name}' exited with code {e.code}; continuing.", file=sys.stderr)
+      continue
     except Exception as e:
       # Trigger the global exception handler, which the logger is configured to
       # handle by writing the exception to the console and to the log file.
