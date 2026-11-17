@@ -85,13 +85,23 @@ def spase(server_id, server_meta, schema, max_datasets=None, exit_on_exception=F
       _add_AccessInformation(Spase, dataset, about, capabilities, cfg['config']['formatMap'], cfg['config']['AccessInformation'])
       _add_Parameter(Spase, dataset, cfg['config']['hapi2spase']['parameter'])
 
-      key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation', 'ProviderResourceName',
-                  'MeasurementType', 'TemporalDescription', 'SpatialCoverage', 'Caveats', 'Parameter']
+      # This should be obtained from the SPASE/NumericalData schema
+      key_order = ['ResourceID', 'ResourceHeader', 'AccessInformation',
+                   'ProviderResourceName', 'MeasurementType', 'TemporalDescription',
+                   'SpatialCoverage', 'Caveats', 'Parameter']
       Spase['NumericalData'] = utilrsw.reorder_dict(Spase['NumericalData'], key_order)
 
-      _write(Spase, server_id, dataset['id'], out_path)
+      valid = _validate(Spase, schema, exit_on_exception)
 
-      _validate(Spase, schema, server_id, dataset['id'], out_path, exit_on_exception)
+      out_file = os.path.join(out_path, server_id, f"{dataset['id']}.xml")
+      if valid:
+        _write(Spase, out_file)
+      else:
+        log.error(f"Error validating dataset {dataset['id']} from server {server_id}. Skipping write.")
+        if os.path.exists(out_file):
+          log.error(f"Found existing file {out_file}. Removing.")
+          os.remove(out_file)
+
     except Exception as e:
       log.error(f"Error processing dataset {dataset['id']} from server {server_id}: {e}")
       if exit_on_exception:
@@ -102,19 +112,24 @@ def spase(server_id, server_meta, schema, max_datasets=None, exit_on_exception=F
   return Spase
 
 
-def _write(Spase, server_id, dataset_id, out_path):
-  json_file = os.path.join(out_path, server_id, f"{dataset_id}.json")
-  log.info(f'       Writing {json_file}')
-  utilrsw.write(json_file, Spase)
-
+def _xml_content(Spase):
   import xmltodict
-  # Convert json to xml
-  xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
+
   attr_keys = ('xmlns', 'xmlns:xsi', 'xsi:schemaLocation')
   xml_root = {(f'@{k}' if k in attr_keys else k): v for k, v in Spase.items()}
-  xml_content = xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
-  log.info(f'       Writing {xml_file}')
-  utilrsw.write(xml_file, xml_content)
+  return xmltodict.unparse({'Spase': xml_root}, pretty=True, indent='  ')
+
+
+def _write(Spase, out_file):
+
+  xml_content = _xml_content(Spase)
+  log.info(f'       Writing {out_file}')
+  utilrsw.write(out_file, xml_content)
+
+  if False:
+    json_file = out_file.replace('.xml', '.json')
+    log.info(f'       Writing {json_file}')
+    utilrsw.write(json_file, Spase)
 
 
 def _read_schema():
@@ -130,29 +145,30 @@ def _read_schema():
   return response['data']
 
 
-def _validate(Spase, schema, server_id, dataset_id, out_path, exit_on_exception=False):
+def _validate(Spase, schema, exit_on_exception=False):
+  """Validate the in-memory record before writing; return whether it is valid."""
   from lxml import etree
 
-  # Alternative:
-  #   xmllint --schema path/to/spase-latest.xsd <SPASE Record>.xml --noout
-
   schema_url = _schema_xsd_url(Spase['xmlns'], Spase['Version'])
-  xml_file = os.path.join(out_path, server_id, f"{dataset_id}.xml")
+  resource_id = Spase['NumericalData'].get('ResourceID', '<unknown ResourceID>')
 
   try:
     schema = etree.XMLSchema(etree.fromstring(schema))
-    log.info(f'       Validating {xml_file} against {schema_url.split("/")[-1]}')
-    with open(xml_file, 'rb') as f:
-      doc = etree.fromstring(f.read())
+    log.info(f'       Validating {resource_id} against {schema_url.split("/")[-1]}')
+    doc = etree.fromstring(_xml_content(Spase).encode('utf-8'))
     if not schema.validate(doc):
       for error in schema.error_log:
-        log.error(f'        {xml_file}: {error}')
+        log.error(f'        {resource_id}: {error}')
       if exit_on_exception:
-        raise Exception(f"SPASE validation failed for {xml_file}")
-    else:
-      log.info('       Valid')
-  except Exception as e:
-    log.warning(f'       Uncaught exception: {e}')
+        raise ValueError(f"SPASE validation failed for {resource_id}")
+      return False
+    log.info('       Valid')
+    return True
+  except (etree.LxmlError, ValueError, TypeError) as e:
+    log.error(f'       Error validating {resource_id}: {e}')
+    if exit_on_exception:
+      raise
+    return False
 
 
 def _schema_xsd_url(schema_url, version):
