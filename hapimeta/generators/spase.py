@@ -309,9 +309,10 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
     if about_description is not None:
       desc = f'{desc}. {about_description}'
 
-    server_citation = get_and_strip('serverCitation')
-    if server_citation is not None:
-      desc = f'{desc}. Server Citation: {server_citation}'
+    if False:
+      server_citation = get_and_strip('serverCitation')
+      if server_citation is not None:
+        desc = f'{desc}. Server Citation: {server_citation}'
 
     contact = get_and_strip('contact')
     if contact is not None:
@@ -336,14 +337,15 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
 
   AccessInformation = copy.deepcopy(template)
 
-  serverCitation = utilrsw.get_path(about, 'serverCitation')
   DOI = utilrsw.get_path(Spase, ['NumericalData.ResourceHeader.DOI'], None)
   if DOI is None:
     see = 'See ResourceHeader/Description for information on citing the dataset'
   else:
     see = f'See ResourceHeader/DOI: {DOI} for information on citing the dataset'
+
+  serverCitation = utilrsw.get_path(about, 'serverCitation')
   if serverCitation is not None:
-    serverCitation = f'Repository Citation: {serverCitation} ({see}).'
+    serverCitation = f'Repository (data provider) Citation: {serverCitation} ({see}).'
   else:
     serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
 
@@ -464,14 +466,15 @@ def _add_ResourceHeader(Spase, dataset, about):
     InformationURLs = [{
       'Name': 'hapi-server.org',
       'URL': url,
-      'Description': 'hapi-server.org dataset information page'
+      'Description': 'hapi-server.org Data Explorer page for dataset'
     }]
+
     resourceURL = utilrsw.get_path(dataset, 'info.resourceURL')
-    if resourceURL is not None:
+    if resourceURL is not None and resourceURL != url:
       InformationURLs.append({
         'Name': 'Resource URL from HAPI metadata',
         'URL': resourceURL,
-        'Description': 'The URL is the the resourceURL field in the HAPI /info response for this dataset.'
+        'Description': 'The URL in the resourceURL field in the HAPI /info response for this dataset.'
       })
 
     additionalMetadata = utilrsw.get_path(dataset, 'info.additionalMetadata')
@@ -481,7 +484,7 @@ def _add_ResourceHeader(Spase, dataset, about):
 
       for additional in additionalMetadata:
         InformationURL = {'Name': '', 'URL': ''}
-        desc = ''
+        desc = []
 
         if 'contentURL' not in additional and 'content' not in additional:
           log.error(f"{dataset['id']}: additionalMetadata entry missing one of 'contentURL' or 'content'")
@@ -492,7 +495,8 @@ def _add_ResourceHeader(Spase, dataset, about):
 
         if 'content' in additional:
           url = f"{dataset['server_url']}/info?dataset={dataset['id']}"
-          desc = f'Additional metadata content is available in the additionalMetadata node in: {url}'
+          desc.append('Additional metadata content is available in the additionalMetadata node in the given URL.')
+          InformationURL['URL'] = url
 
         if 'name' in additional:
           InformationURL['Name'] = additional['name']
@@ -500,16 +504,16 @@ def _add_ResourceHeader(Spase, dataset, about):
           InformationURL['Name'] = 'Additional metadata'
 
         if 'aboutURL' in additional:
-          desc += f"Metadata description: {additional['aboutURL']}"
+          desc.append(f"Metadata description: {additional['aboutURL']}")
 
         if 'schemaURL' in additional:
-          desc += f". Metadata schema: {additional['schemaURL']}."
+          desc.append(f"Metadata schema: {additional['schemaURL']}")
 
 
         note = 'The information in this InformationURL node is derived from an additionalMetadata node in HAPI /info response'
 
-        if desc != '':
-          InformationURL['Description'] = f'{desc}. {note}'
+        if desc:
+          InformationURL['Description'] = f'{" ".join(desc)}. {note}'
         else:
           InformationURL['Description'] = note
 
