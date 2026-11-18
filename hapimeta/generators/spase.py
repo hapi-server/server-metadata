@@ -349,13 +349,13 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
   if DOI is None:
     see = '.'
   else:
-    see = f'. (See ResourceHeader/DOI: {DOI} for information on citing the dataset)'
+    see = f'. (See ResourceHeader/DOI: {DOI} for information on citing the dataset).'
 
   serverCitation = utilrsw.get_path(about, 'serverCitation')
   if serverCitation is not None:
-    serverCitation = f'Repository (data provider) Citation: {serverCitation}{see}.'
+    serverCitation = f'Repository (data provider) Citation: {serverCitation}{see}'
   else:
-    serverCitation = f'No serverCitation provided in HAPI /about response for this server{see}.'
+    serverCitation = f'No serverCitation provided in HAPI /about response for this server{see}'
 
   RepositoryID = about.get('x_SPASE', {}).get('RepositoryID', None)
 
@@ -609,6 +609,7 @@ def _add_ResourceHeader(Spase, dataset, about):
   rh_key_order = ['ResourceName', 'AlternateName', 'DOI', 'ReleaseDate', 'RevisionHistory',
                    'Description', 'Acknowledgement', 'PublicationInfo', 'Contact',
                    'InformationURL', 'Association', 'PriorID']
+
   Spase['NumericalData']['ResourceHeader'] = utilrsw.reorder_dict(
     Spase['NumericalData']['ResourceHeader'], rh_key_order
   )
