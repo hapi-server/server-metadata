@@ -376,7 +376,7 @@ def run():
   all = hapimeta.all(log)
 
   dfs = []
-  for server in all.keys():
+  for server in all:
     df = process_server(server, all[server], max_datasets=args.n_datasets)
     hapimeta.error.write(server, 'availabilities', log)
     dfs.append(df)

@@ -10,6 +10,16 @@ This repository contains code that requests all metadata from all HAPI servers d
 
 * `python run.py spase` creates partial SPASE records for all datasets of all servers. It uses `spase.json` for configuration information. The output is stored in [https://hapi-server.org/meta/spase/](hapi-server.org/meta/spase/).
 
+Commands that read prebuilt catalogs use `data/catalog/{server_id}-all.json`
+when `--servers` is specified. With `--use-remote-catalog`, they download
+`catalog/{server_id}-all.json` from `common.DATA_DIR_REMOTE` in `run.json`,
+caching the files under `data/tmp/catalog/`. These files
+contain each server's about, capabilities, and catalog metadata, including
+dataset `/info` responses. Regenerate older catalog-only files with
+`python run.py catalogs --servers server_id`. Without `--servers`, the
+combined catalog is used; `--use-remote-catalog` downloads `common.ALL_FILE`
+from `common.DATA_DIR_REMOTE` and caches it under `data/tmp/`.
+
 # Development
 
 See `etc/crontab.py` for commands that are executed nightly.

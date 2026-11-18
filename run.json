@@ -2,7 +2,7 @@
   "common": {
     "DATA_DIR": "data",
     "ALL_FILE": "catalogs-all.pkl",
-    "ALL_FILE_REMOTE": "https://hapi-server.org/meta/catalogs-all.pkl"
+    "DATA_DIR_REMOTE": "https://hapi-server.org/meta"
   },
   "abouts": {
     "repo_url": "https://github.com/hapi-server/servers",

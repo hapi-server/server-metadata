@@ -45,7 +45,7 @@ def cli():
   except Exception:
     pass
 
-  ALL_FILE_REMOTE = hapimeta.config('common')['ALL_FILE_REMOTE']
+  DATA_DIR_REMOTE = hapimeta.config('common')['DATA_DIR_REMOTE']
 
   epilog = [
     'Examples:',
@@ -99,7 +99,8 @@ def cli():
     '--use-remote-catalog',
     action='store_true',
     help=(
-      f'Use {ALL_FILE_REMOTE} instead of {hapimeta.DATA_DIR}/catalogs-all.pkl '
+      f'Use catalogs from {DATA_DIR_REMOTE} instead of {hapimeta.DATA_DIR} '
+      f'(per-server catalog/{{server_id}}-all.json with --servers, combined catalog otherwise) '
       f'for commands that read prebuilt catalog data ('
       f"{', '.join(sorted(remote_catalog_commands))})"
     ),

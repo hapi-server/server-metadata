@@ -164,7 +164,7 @@ def get_infos(server_id, catalog, max_datasets=None):
   try:
     fname = os.path.join(hapimeta.DATA_DIR, 'catalog', f'{server_id}-all.json')
     log.info(f"  Writing {fname}")
-    utilrsw.write(fname, catalog['catalog'])
+    write(fname, catalog, pkl=True)
   except Exception as exc:
     log.error(f"Error writing {fname}: {exc}. Exiting with code 1.")
 
