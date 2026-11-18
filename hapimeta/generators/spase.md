@@ -16,14 +16,13 @@ is mapped to:
 ```xml
 <NumericalData>
   <ResourceHeader>
-    <Person>
+    <Contact>
       <PersonID>spase://SMWG/Person/Katherine.Cariglia</PersonID>
-    </Person>
+       <Role>HostContact</Role>
+    </Contact>
   </ResourceHeader>
   <AccessInformation>
-    <Repository>
-      <RepositoryID>spase://HamSCI/Repository/Madrigal</RepositoryID>
-    </Repository>
+     <RepositoryID>spase://HamSCI/Repository/Madrigal</RepositoryID>
   </AccessInformation>
 </NumericalData>
 ```
