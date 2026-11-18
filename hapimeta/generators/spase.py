@@ -347,15 +347,15 @@ def _add_AccessInformation(Spase, dataset, about, capabilities, formatMap, templ
 
   DOI = utilrsw.get_path(Spase, ['NumericalData.ResourceHeader.DOI'], None)
   if DOI is None:
-    see = 'See ResourceHeader/Description for information on citing the dataset'
+    see = '.'
   else:
-    see = f'See ResourceHeader/DOI: {DOI} for information on citing the dataset'
+    see = f'. (See ResourceHeader/DOI: {DOI} for information on citing the dataset)'
 
   serverCitation = utilrsw.get_path(about, 'serverCitation')
   if serverCitation is not None:
-    serverCitation = f'Repository (data provider) Citation: {serverCitation} ({see}).'
+    serverCitation = f'Repository (data provider) Citation: {serverCitation}{see}.'
   else:
-    serverCitation = f'No serverCitation provided in HAPI /about response for this server ({see}).'
+    serverCitation = f'No serverCitation provided in HAPI /about response for this server{see}.'
 
   RepositoryID = about.get('x_SPASE', {}).get('RepositoryID', None)
 
