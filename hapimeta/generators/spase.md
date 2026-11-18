@@ -44,13 +44,9 @@ For example, the `additionalMetadata` field in the `/info` response could contai
         }
       },
       "AccessInformation": {
-        "Repository": {
-          "RepositoryID": "spase://HamSCI/Repository/Madrigal"
-        }
+         "RepositoryID": "spase://HamSCI/Repository/Madrigal"
       },
-      "Instrument": {
-        "InstrumentID": "spase://HamSCI/Instrument/Example"
-      }
+      "InstrumentID": "spase://HamSCI/Instrument/Example"
     }
   }
 }
@@ -76,16 +72,11 @@ For repeated elements, use arrays:
         ]
       },
       "AccessInformation": {
-        "Repository": {
-          "RepositoryID": "spase://HamSCI/Repository/Madrigal"
-        }
+        "RepositoryID": "spase://HamSCI/Repository/Madrigal"
       },
-      "Instrument": [
-        {
-          "InstrumentID": "spase://HamSCI/Instrument/Example"
-        },
-        {
-          "InstrumentID": "spase://HamSCI/Instrument/AnotherExample"
+      "InstrumentID": [
+          "spase://HamSCI/Instrument/Example",
+          "spase://HamSCI/Instrument/AnotherExample"
         }
       ]
     }
@@ -117,9 +108,11 @@ Information about parameters can be added. For example, the conversion of the fo
     "NumericalData": {
       "Parameter": [
         {
+          "Name": "Hello", <- Name not mapped. Error
           "ParameterKey": "parameterA",
           "ValidMin": -65534.0,
           "ValidMax": 65534.0
+          "Units": "mT" <- Raise error because of confict
         }
       ]
     }
@@ -133,10 +126,12 @@ will result in
 <NumericalData>
   ...
   <Parameter>
+    <Name>Time</Name>
     <ParameterKey>Time</ParameterKey>
     <Description>Time of the observation</Description>
   </Parameter>
   <Parameter>
+    <Name>parameterA</Name>
     <ParameterKey>parameterA</ParameterKey>
     <Description>Description of parameterA</Description>
     <Units>nT</Units>
