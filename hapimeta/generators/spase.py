@@ -9,6 +9,14 @@ import hapimeta
 cfg = hapimeta.config('spase')
 log = hapimeta.logger('spase')
 
+"""SPASE metadata generator for HAPI servers.
+
+This module reads HAPI server metadata from catalogs-all.pkl and generates
+SPASE NumericalData XML files.
+
+See spase.md for more information on the HAPI to SPASE mapping.
+"""
+
 def run():
 
   log.info('Generating SPASE')
